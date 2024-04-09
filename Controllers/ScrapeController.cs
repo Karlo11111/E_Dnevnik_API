@@ -33,7 +33,7 @@ namespace E_Dnevnik_API.Controllers
                 CookieContainer = new CookieContainer()
             };
 
-            // Now create a new HttpClient instance using the handler
+            // create a HttpClient instance using the handler
             using var httpClient = new HttpClient(handler);
 
             // Ensure the default headers are cleared
@@ -47,14 +47,13 @@ namespace E_Dnevnik_API.Controllers
             }
 
             // Authentication process with the website
-            var loginUrl = "https://ocjene.skole.hr/login"; 
             var loginData = new { email = request.Email, password = request.Password };
 
 
             var loginPageResponse = await httpClient.GetAsync("https://ocjene.skole.hr/login");
             var loginPageContent = await loginPageResponse.Content.ReadAsStringAsync();
 
-            // Parse the HTML to find the CSRF token
+            // find the CSRF token
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(loginPageContent);
             var csrfToken = htmlDoc.DocumentNode.SelectSingleNode("//input[@name='csrf_token']")
@@ -68,7 +67,7 @@ namespace E_Dnevnik_API.Controllers
             // Construct the login request with the CSRF token
             var formData = new Dictionary<string, string>
             {
-                ["username"] = request.Email, // Assuming the field is named 'username'
+                ["username"] = request.Email, 
                 ["password"] = request.Password,
                 ["csrf_token"] = csrfToken
             };
@@ -82,7 +81,7 @@ namespace E_Dnevnik_API.Controllers
 
 
             // Continue with scraping process
-            var scrapeResponse = await httpClient.GetAsync("https://ocjene.skole.hr/course"); // Replace with actual URL
+            var scrapeResponse = await httpClient.GetAsync("https://ocjene.skole.hr/course"); 
             if (!scrapeResponse.IsSuccessStatusCode)
             {
                 return StatusCode((int)scrapeResponse.StatusCode, "Failed to retrieve subject information.");
@@ -115,6 +114,8 @@ namespace E_Dnevnik_API.Controllers
                     var gradeText = gradeNode != null ? CleanText(gradeNode.InnerText) : "N/A";
 
                     subjectList.Add(new SubjectInfo(subjectName, professorName, gradeText));
+
+
                 }
             }
 
@@ -122,7 +123,7 @@ namespace E_Dnevnik_API.Controllers
         }
 
 
-        // The CleanText method as defined earlier
+        // method to clean up text and empty spaces
         private string CleanText(string text)
         {
             // Removes leading and trailing whitespace
