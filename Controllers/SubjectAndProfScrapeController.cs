@@ -24,7 +24,7 @@ namespace E_Dnevnik_API.Controllers
 
 
 
-        [HttpPost("scrape")]
+        [HttpPost("ScrapeSubjectsAndProfessors")]
         public async Task<ActionResult<List<SubjectInfo>>> ScrapeSubjects([FromBody] ScrapeRequest request)
         {
             var handler = new HttpClientHandler
