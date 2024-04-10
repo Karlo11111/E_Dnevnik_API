@@ -1,4 +1,6 @@
-﻿namespace E_Dnevnik_API.Models.ScrapeSubjects
+﻿using Newtonsoft.Json;
+
+namespace E_Dnevnik_API.Models.ScrapeSubjects
 {
     public class StudentProfile
     {
@@ -10,7 +12,10 @@
     }
     public class ScrapeResult
     {
+        [JsonProperty(Order = 1)]
         public List<SubjectInfo> Subjects { get; set; }
+
+        [JsonProperty(Order = 2)]
         public StudentProfile StudentProfile { get; set; }
     }
 }

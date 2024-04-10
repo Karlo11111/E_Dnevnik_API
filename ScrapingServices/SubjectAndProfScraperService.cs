@@ -136,8 +136,8 @@ namespace E_Dnevnik_API.ScrapingServices
 
             return new ScrapeResult
             {
+                StudentProfile = studentProfile, // The extracted student profile
                 Subjects = subjectList, // The extracted list of subjects
-                StudentProfile = studentProfile // The extracted student profile
             };
         }
 
