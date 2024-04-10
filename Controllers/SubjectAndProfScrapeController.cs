@@ -23,9 +23,13 @@ namespace E_Dnevnik_API.Controllers
         }
 
         [HttpPost("ScrapeSubjectsAndProfessors")]
-        public async Task<ActionResult<List<SubjectInfo>>> ScrapeSubjects([FromBody] ScrapeRequest request)
+        public async Task<ActionResult<ScrapeResult>> ScrapeSubjects([FromBody] ScrapeRequest request)
         {
-            return await _scraperService.ScrapeSubjects(request);
+            // Call the service method that returns ScrapeResult
+            var actionResult = await _scraperService.ScrapeSubjects(request);
+
+            // Return the result
+            return actionResult;
         }
     }
 

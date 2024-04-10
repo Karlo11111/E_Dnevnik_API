@@ -20,36 +20,27 @@ namespace E_Dnevnik_API.ScrapingServices
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<ActionResult<List<SubjectInfo>>> ScrapeSubjects([FromBody] ScrapeRequest request)
+        public async Task<ActionResult<ScrapeResult>> ScrapeSubjects([FromBody] ScrapeRequest request)
         {
-            //cookies handler
             var handler = new HttpClientHandler
             {
                 UseCookies = true,
                 CookieContainer = new CookieContainer()
             };
 
-            // create a HttpClient instance using the handler
             using var httpClient = new HttpClient(handler);
-
-            // Ensure the default headers are cleared
             httpClient.DefaultRequestHeaders.Clear();
 
-
-            // Input validation
             if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
             {
                 return BadRequest("Email and password must be provided.");
             }
 
-            // Authentication process with the website
-            var loginData = new { email = request.Email, password = request.Password };
-
-
             var loginPageResponse = await httpClient.GetAsync("https://ocjene.skole.hr/login");
             var loginPageContent = await loginPageResponse.Content.ReadAsStringAsync();
+            var loginUrl = "https://ocjene.skole.hr/login";
 
-            // find the CSRF token
+
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(loginPageContent);
             var csrfToken = htmlDoc.DocumentNode.SelectSingleNode("//input[@name='csrf_token']")
@@ -60,7 +51,6 @@ namespace E_Dnevnik_API.ScrapingServices
                 return StatusCode(StatusCodes.Status500InternalServerError, "CSRF token not found.");
             }
 
-            // Construct the login request with the CSRF token
             var formData = new Dictionary<string, string>
             {
                 ["username"] = request.Email,
@@ -69,27 +59,30 @@ namespace E_Dnevnik_API.ScrapingServices
             };
 
             var loginContent = new FormUrlEncodedContent(formData);
-
-            // Include additional headers if necessary (e.g., Referer)
             httpClient.DefaultRequestHeaders.Referrer = new Uri("https://ocjene.skole.hr/login");
+            var loginResponse = await httpClient.PostAsync(loginUrl, loginContent);
 
-            var loginResponse = await httpClient.PostAsync("https://ocjene.skole.hr/login", loginContent);
+            if (!loginResponse.IsSuccessStatusCode)
+            {
+                return StatusCode((int)loginResponse.StatusCode, "Failed to log in.");
+            }
 
-
-            // Continue with scraping process
             var scrapeResponse = await httpClient.GetAsync("https://ocjene.skole.hr/course");
             if (!scrapeResponse.IsSuccessStatusCode)
             {
                 return StatusCode((int)scrapeResponse.StatusCode, "Failed to retrieve subject information.");
             }
 
-            var htmlContent = await scrapeResponse.Content.ReadAsStringAsync();
-            return await ExtractSubjectInfo(htmlContent, httpClient);
+            var scrapeHtmlContent = await scrapeResponse.Content.ReadAsStringAsync();
+            var scrapeData = await ExtractScrapeData(scrapeHtmlContent);
 
+
+
+            return Ok(scrapeData);
         }
 
         //extracting subject info from the html content
-        private async Task<List<SubjectInfo>> ExtractSubjectInfo(string htmlContent, HttpClient httpClient)
+        private async Task<ScrapeResult> ExtractScrapeData(string htmlContent)
         {
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(htmlContent);
@@ -114,6 +107,16 @@ namespace E_Dnevnik_API.ScrapingServices
             var studentSchoolCityNode = htmlDoc.DocumentNode.SelectSingleNode("//div[@id='page-wrapper']//div[@class='school-data']//div[@class='school']//span[@class='school-city']");
             var studentSchoolCity = studentSchoolCityNode != null ? CleanText(studentSchoolCityNode.InnerText) : "N/A";
 
+            // Initialize student profile
+            var studentProfile = new StudentProfile
+            {
+                StudentName = studentName,
+                StudentGrade = studentGrade,
+                StudentSchoolYear = studentSchoolYear,
+                StudentSchool = studentSchool,
+                StudentSchoolCity = studentSchoolCity
+            };
+
             //getting the each nodes of the course class
             if (courseNodes != null)
             {
@@ -127,12 +130,18 @@ namespace E_Dnevnik_API.ScrapingServices
                     var professorName = professorNameNode != null ? CleanText(professorNameNode.InnerText) : "N/A";
                     var gradeText = gradeNode != null ? CleanText(gradeNode.InnerText) : "N/A";
 
-                    subjectList.Add(new SubjectInfo(subjectName, professorName, gradeText, studentName, studentGrade, studentSchoolYear, studentSchool, studentSchoolCity));
+                    subjectList.Add(new SubjectInfo(subjectName, professorName, gradeText));
                 }
             }
 
-            return subjectList;
+            return new ScrapeResult
+            {
+                Subjects = subjectList, // The extracted list of subjects
+                StudentProfile = studentProfile // The extracted student profile
+            };
         }
+
+
 
         // Cleans the text by removing leading and trailing whitespace and replacing sequences of whitespace characters with a single space
         private string CleanText(string text)
