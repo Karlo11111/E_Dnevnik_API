@@ -95,8 +95,24 @@ namespace E_Dnevnik_API.ScrapingServices
             htmlDoc.LoadHtml(htmlContent);
 
             var courseNodes = htmlDoc.DocumentNode.SelectNodes("//ul[@class='list']/li/a");
-
             var subjectList = new List<SubjectInfo>();
+
+            // Extract the student's name
+            var studentNameNode = htmlDoc.DocumentNode.SelectSingleNode("//div[@id='page-wrapper']//div[@class='logged-in-user']//div[@class='user-name']/span");
+            var studentName = studentNameNode != null ? CleanText(studentNameNode.InnerText) : "N/A";
+
+            //Extract the student school, year, and city
+            var studentGradeNode = htmlDoc.DocumentNode.SelectSingleNode("//div[@id='page-wrapper']//div[@class='school-data']//div[@class='class']//span[@class='bold']");
+            var studentGrade = studentGradeNode != null ? CleanText(studentGradeNode.InnerText) : "N/A";
+
+            var studentSchoolYearNode = htmlDoc.DocumentNode.SelectSingleNode("//div[@id='page-wrapper']//div[@class='school-data']//div[@class='class']//span[@class='class-schoolyear']");
+            var studentSchoolYear = studentSchoolYearNode != null ? CleanText(studentSchoolYearNode.InnerText) : "N/A";
+
+            var studentSchoolNode = htmlDoc.DocumentNode.SelectSingleNode("//div[@id='page-wrapper']//div[@class='school-data']//div[@class='school']//span[@class='school-name']");
+            var studentSchool = studentSchoolNode != null ? CleanText(studentSchoolNode.InnerText) : "N/A";
+
+            var studentSchoolCityNode = htmlDoc.DocumentNode.SelectSingleNode("//div[@id='page-wrapper']//div[@class='school-data']//div[@class='school']//span[@class='school-city']");
+            var studentSchoolCity = studentSchoolCityNode != null ? CleanText(studentSchoolCityNode.InnerText) : "N/A";
 
             //getting the each nodes of the course class
             if (courseNodes != null)
@@ -111,7 +127,7 @@ namespace E_Dnevnik_API.ScrapingServices
                     var professorName = professorNameNode != null ? CleanText(professorNameNode.InnerText) : "N/A";
                     var gradeText = gradeNode != null ? CleanText(gradeNode.InnerText) : "N/A";
 
-                    subjectList.Add(new SubjectInfo(subjectName, professorName, gradeText));
+                    subjectList.Add(new SubjectInfo(subjectName, professorName, gradeText, studentName, studentGrade, studentSchoolYear, studentSchool, studentSchoolCity));
                 }
             }
 
