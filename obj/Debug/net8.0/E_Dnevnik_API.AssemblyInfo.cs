@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("E_Dnevnik_API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8a278a0fab6c05d88d32589b33a9618dc7010590")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+48e8a6711ebdf0b7e856fd580d2479281cececd2")]
 [assembly: System.Reflection.AssemblyProductAttribute("E_Dnevnik_API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("E_Dnevnik_API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
