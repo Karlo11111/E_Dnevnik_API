@@ -80,41 +80,64 @@ namespace E_Dnevnik_API.ScrapingServices
         }
 
         //extracting test info from the html content
-        private async Task<TestResult> ExtractScrapeData(string htmlContent)
+        private async Task<Dictionary<string, List<TestInfo>>> ExtractScrapeData(string htmlContent)
         {
             var htmlDoc = new HtmlDocument();
-            htmlDoc.LoadHtml(htmlContent); 
-            Console.WriteLine("Html content: " + htmlContent);
+            htmlDoc.LoadHtml(htmlContent);
 
+            // Dictionary to hold each month's tests
+            var monthlyTests = new Dictionary<string, List<TestInfo>>();
 
-            try
+            // Select all the exam table divs
+            var examTableNodes = htmlDoc.DocumentNode.SelectNodes("//div[contains(@class, 'exam-table')]");
+
+            foreach (var tableNode in examTableNodes)
             {
-                var contentAreaNode = htmlDoc.DocumentNode.SelectSingleNode("//div[@id='page-wrapper']//div[@class='content-wrapper']//div[@class='content ']//div[@class='table-wrapper show-all']//div[@aria-label='ExamTable']");
-
-                Console.WriteLine("contentAreaNode: " + contentAreaNode.InnerHtml);
-                if (contentAreaNode == null)
+                // Extract the month name using the action-id attribute
+                var monthName = tableNode.GetAttributeValue("data-action-id", string.Empty);
+                if (string.IsNullOrWhiteSpace(monthName))
                 {
-                    Console.WriteLine("contentAreaNode is null");
-                    return null; // Or handle the error as appropriate
+                    continue; // Skip if the month name is not found
                 }
 
-                // Rest of your code...
+                // Initialize the list of tests for the month
+                var testsForMonth = new List<TestInfo>();
+
+                // Select all the test rows for the month
+                var testNodes = tableNode.SelectNodes(".//div[contains(@class, 'row') and not(contains(@class, 'row header'))]");
+
+                if (testNodes != null)
+                {
+                    foreach (var rowNode in testNodes)
+                    {
+                        var dateCell = rowNode.SelectSingleNode(".//div[@class='cell'][1]");
+                        var nameCell = rowNode.SelectSingleNode(".//div[@class='box']/div[@class='cell'][1]");
+                        var descriptionCell = rowNode.SelectSingleNode(".//div[@class='box']/div[@class='cell'][2]");
+
+                        // Ensure none of the critical cells are null before proceeding
+                        if (dateCell != null && descriptionCell != null && nameCell != null)
+                        {
+                            var testDate = dateCell.InnerText.Trim();
+                            var testDescription = descriptionCell.InnerText.Trim();
+                            var testName = nameCell.InnerText.Trim();
+
+                            testsForMonth.Add(new TestInfo(testName, testDescription, testDate));
+                        }
+                        else
+                        {
+                            // Log the issue and continue with the next iteration
+                            Console.WriteLine("A required cell is missing in the test node.");
+                            continue;
+                        }
+                    }
+                }
+
+                // Add the tests for the month to the dictionary
+                monthlyTests[monthName] = testsForMonth;
             }
-    catch (Exception ex)
-    {
-                Console.WriteLine($"An error occurred: {ex.Message}");
-                // Handle the exception as appropriate
-            }
 
-
-            var svibanjTableNode = htmlDoc.DocumentNode.SelectSingleNode("//div[@class='flex-table small exam-table show' and @aria-label='ExamTable']");
-            var testList = new List<TestInfo>();
-            var scrapeData = new TestResult
-            {
-                Tests = testList
-            };
-
-            return scrapeData;
+            return monthlyTests;
         }
+
     }
 }

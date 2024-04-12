@@ -3,8 +3,8 @@
     // this is what is required in the request, basically the body of the request youre sending to the api
     public class ScrapeRequest
     {
-        public string Email { get; set; }
-        public string Password { get; set; }
+        public string? Email { get; set; }
+        public string? Password { get; set; }
     }
 
 }

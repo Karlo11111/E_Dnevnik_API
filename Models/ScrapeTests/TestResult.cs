@@ -2,6 +2,6 @@
 {
     public class TestResult
     {
-        public List<TestInfo> Tests { get; set; }
+        public List<TestInfo>? Tests { get; set; }
     }
 }
