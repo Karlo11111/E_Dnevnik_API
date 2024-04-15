@@ -10,6 +10,7 @@ using E_Dnevnik_API.ScrapingServices;
 using E_Dnevnik_API.Models.ScrapeSubjects;
 using E_Dnevnik_API.Models.ScrapeTests;
 using E_Dnevnik_API.Models.ScrapeStudentProfile;
+using E_Dnevnik_API.Models.DifferentGradeLinks;
 
 namespace E_Dnevnik_API.Controllers
 {
@@ -20,6 +21,7 @@ namespace E_Dnevnik_API.Controllers
         private readonly ScraperService _subjectScraperService;
         private readonly TestScraperService _testScraperService;
         private readonly StudentProfileScraperService _studentProfileScraperService;
+        private readonly DifferentGradeLinkScraperService _differentGradeLinkScraperService;
 
 
         public ScraperController(IHttpClientFactory httpClientFactory)
@@ -27,6 +29,7 @@ namespace E_Dnevnik_API.Controllers
             _subjectScraperService = new ScraperService(httpClientFactory);
             _testScraperService = new TestScraperService(httpClientFactory);
             _studentProfileScraperService = new StudentProfileScraperService(httpClientFactory);
+            _differentGradeLinkScraperService = new DifferentGradeLinkScraperService(httpClientFactory);
         }
 
         [HttpPost("ScrapeSubjectsAndProfessors")]
@@ -54,6 +57,16 @@ namespace E_Dnevnik_API.Controllers
         {
             // Call the service method that returns TestResult
             var actionResult = await _testScraperService.ScrapeTests(request);
+
+            // Return the result
+            return actionResult;
+        }
+
+        [HttpPost("ScrapeDifferentGrades")]
+        public async Task<ActionResult<List<GradeSubjectDetails>>> ScrapeDifferentGradeLink([FromBody] ScrapeRequest request)
+        {
+            // Call the service method that returns List<GradeSubjectDetails>
+            var actionResult = await _differentGradeLinkScraperService.ScrapeDifferentGradeLink(request);
 
             // Return the result
             return actionResult;

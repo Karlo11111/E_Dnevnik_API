@@ -115,8 +115,11 @@ namespace E_Dnevnik_API.ScrapingServices
             // Removes leading and trailing whitespace
             text = text.Trim();
 
+            text = Regex.Replace(text, "[^a-zA-Z0-9\\s/]", "");
+
             // Replaces sequences of whitespace characters with a single space
-            text = Regex.Replace(text, @"\s+", " ");
+            text = Regex.Replace(text, "\\s+", " ");
+
 
             return text;
         }

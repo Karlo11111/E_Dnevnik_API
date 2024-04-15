@@ -33,3 +33,4 @@ E:\ASP.NET_CORE-projects\E_Dnevnik_API\E_Dnevnik_API\E_Dnevnik_API\obj\Debug\net
 E:\ASP.NET_CORE-projects\E_Dnevnik_API\E_Dnevnik_API\E_Dnevnik_API\obj\Debug\net8.0\E_Dnevnik_API.genruntimeconfig.cache
 E:\ASP.NET_CORE-projects\E_Dnevnik_API\E_Dnevnik_API\E_Dnevnik_API\obj\Debug\net8.0\ref\E_Dnevnik_API.dll
 E:\ASP.NET_CORE-projects\E_Dnevnik_API\E_Dnevnik_API\E_Dnevnik_API\obj\Debug\net8.0\E_Dnevnik_API.sourcelink.json
+E:\ASP.NET_CORE-projects\E_Dnevnik_API\E_Dnevnik_API\E_Dnevnik_API\bin\Debug\net8.0\System.Security.Permissions.dll
