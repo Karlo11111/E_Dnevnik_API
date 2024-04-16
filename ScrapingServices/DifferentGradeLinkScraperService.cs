@@ -4,8 +4,12 @@ using E_Dnevnik_API.Models.ScrapeTests;
 using HtmlAgilityPack;
 using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Mvc;
+using OpenQA.Selenium;
+using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Support.UI;
 using System.Net;
 using System.Text.RegularExpressions;
+using System.Net.Http;
 
 namespace E_Dnevnik_API.ScrapingServices
 {
@@ -68,21 +72,24 @@ namespace E_Dnevnik_API.ScrapingServices
 
             foreach (var grade in gradeLinks.DifferentGrade)
             {
-                var subjectPageContent = await httpClient.GetStringAsync($"https://ocjene.skole.hr{grade.GradeLink}");
-                var subjectDetails = await ExtractSubjectDetails(subjectPageContent, httpClient); // Ensure this method returns List<SubjectInfo>
+                var classPageUrl = $"https://ocjene.skole.hr{grade.GradeLink}";
+
+                // Navigate to the class page
+                var classPageResponse = await httpClient.GetAsync(classPageUrl);
+                if (!classPageResponse.IsSuccessStatusCode)
+                {
+                    Console.WriteLine("Failed to navigate to class page: " + classPageUrl);
+                    continue;
+                }
+
+                var classPageContent = await classPageResponse.Content.ReadAsStringAsync();
+
+                var subjectDetails = await ExtractSubjectDetails(classPageContent, httpClient);
                 allGradeSubjectDetails.Add(new GradeSubjectDetails(grade.GradeYear, subjectDetails.Subjects));
             }
 
-            return Ok(allGradeSubjectDetails);
+                return Ok(allGradeSubjectDetails);
         }
-
-        private async Task<DifferentGradeResult> FetchGradeLinks(HttpClient httpClient)
-        {
-            var response = await httpClient.GetAsync("https://ocjene.skole.hr/class");
-            var htmlContent = await response.Content.ReadAsStringAsync();
-            return await ExtractGradeLinks(htmlContent); // Reuse the same ExtractScrapeData or similar logic tailored for links
-        }
-
 
         private async Task<DifferentGradeResult> ExtractGradeLinks(string htmlContent)
         {
@@ -108,6 +115,7 @@ namespace E_Dnevnik_API.ScrapingServices
                                 GradeYear = gradeName,
                                 GradeLink = gradeLink
                             });
+                            Console.WriteLine("Grade year: " + gradeName + " Grade link: " + gradeLink);
                         }
                     }
                 }
@@ -121,6 +129,7 @@ namespace E_Dnevnik_API.ScrapingServices
 
             return subjectList;
         }
+
         private async Task<SubjectScrapeResult> ExtractSubjectDetails(string htmlContent, HttpClient httpClient)
         {
             var htmlDoc = new HtmlDocument();
@@ -143,13 +152,15 @@ namespace E_Dnevnik_API.ScrapingServices
                     var hrefValue = ExtractNumbers(aNode.GetAttributeValue("href", ""));
 
                     var gradePageUrl = $"https://ocjene.skole.hr/grade/{hrefValue}";
-
-                    var gradePageContent = await httpClient.GetStringAsync(gradePageUrl);
-
+                    
                     if (gradeText == "N/A")
                     {
-                        var alternativeGradeNode = aNode.SelectSingleNode(".//div[@class='alternative-grade-location']");
-                        gradeText = alternativeGradeNode != null ? CleanText(alternativeGradeNode.InnerText) : "N/A";
+                        var classPageContent = await httpClient.GetStringAsync(gradePageUrl);
+                        var classDoc = new HtmlDocument();
+                        classDoc.LoadHtml(classPageContent);
+                        // You need to define the correct XPath for the alternative grade location
+                        var alternativeGradeNode = classDoc.DocumentNode.SelectSingleNode("//div[@class='flex-table s  grades-table ']/div[@class='row final-grade ']/div[@class='cell']/span");
+                        gradeText = alternativeGradeNode != null ? ExtractNumbers(alternativeGradeNode.InnerText) : "N/A";
                     }
 
                     subjectList.Add(new SubjectInfo(
@@ -164,8 +175,12 @@ namespace E_Dnevnik_API.ScrapingServices
             return new SubjectScrapeResult { Subjects = subjectList };
         }
 
-
-
+        private async Task<DifferentGradeResult> FetchGradeLinks(HttpClient httpClient)
+        {
+            var response = await httpClient.GetAsync("https://ocjene.skole.hr/class");
+            var htmlContent = await response.Content.ReadAsStringAsync();
+            return await ExtractGradeLinks(htmlContent); 
+        }
 
         //function that returns only numbers from the string (for subject id)
         public static string ExtractNumbers(string input)
@@ -184,7 +199,6 @@ namespace E_Dnevnik_API.ScrapingServices
 
             return number;
         }
-
 
         // Cleans the text by removing leading and trailing whitespace and replacing sequences of whitespace characters with a single space
         private string CleanText(string text)
