@@ -11,6 +11,8 @@ using E_Dnevnik_API.Models.ScrapeSubjects;
 using E_Dnevnik_API.Models.ScrapeTests;
 using E_Dnevnik_API.Models.ScrapeStudentProfile;
 using E_Dnevnik_API.Models.DifferentGradeLinks;
+using System.Runtime.CompilerServices;
+using E_Dnevnik_API.Models.Absences_izostanci;
 
 namespace E_Dnevnik_API.Controllers
 {
@@ -22,6 +24,7 @@ namespace E_Dnevnik_API.Controllers
         private readonly TestScraperService _testScraperService;
         private readonly StudentProfileScraperService _studentProfileScraperService;
         private readonly DifferentGradeLinkScraperService _differentGradeLinkScraperService;
+        private readonly AbsenceScraperService _absenceScraperService;
 
 
         public ScraperController(IHttpClientFactory httpClientFactory)
@@ -30,6 +33,7 @@ namespace E_Dnevnik_API.Controllers
             _testScraperService = new TestScraperService(httpClientFactory);
             _studentProfileScraperService = new StudentProfileScraperService(httpClientFactory);
             _differentGradeLinkScraperService = new DifferentGradeLinkScraperService(httpClientFactory);
+            _absenceScraperService = new AbsenceScraperService(httpClientFactory);
         }
 
         [HttpPost("ScrapeSubjectsAndProfessors")]
@@ -67,6 +71,15 @@ namespace E_Dnevnik_API.Controllers
         {
             // Call the service method that returns List<GradeSubjectDetails>
             var actionResult = await _differentGradeLinkScraperService.ScrapeDifferentGradeLink(request);
+
+            // Return the result
+            return actionResult;
+        }
+        [HttpPost("ScrapeAbsences")]
+        public async Task<ActionResult<AbsencesResult>> ActionResult([FromBody] ScrapeRequest request)
+        {
+            // Call the service method that returns AbsencesResult
+            var actionResult = await _absenceScraperService.ScrapeAbsences(request);
 
             // Return the result
             return actionResult;
