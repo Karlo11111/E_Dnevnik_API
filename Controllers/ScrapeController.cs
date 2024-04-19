@@ -13,6 +13,7 @@ using E_Dnevnik_API.Models.ScrapeStudentProfile;
 using E_Dnevnik_API.Models.DifferentGradeLinks;
 using System.Runtime.CompilerServices;
 using E_Dnevnik_API.Models.Absences_izostanci;
+using E_Dnevnik_API.Models.ScheduleTable;
 
 namespace E_Dnevnik_API.Controllers
 {
@@ -25,6 +26,7 @@ namespace E_Dnevnik_API.Controllers
         private readonly StudentProfileScraperService _studentProfileScraperService;
         private readonly DifferentGradeLinkScraperService _differentGradeLinkScraperService;
         private readonly AbsenceScraperService _absenceScraperService;
+        private readonly ScheduleTableScraperService _scheduleTableScraperService;
 
 
         public ScraperController(IHttpClientFactory httpClientFactory)
@@ -34,6 +36,7 @@ namespace E_Dnevnik_API.Controllers
             _studentProfileScraperService = new StudentProfileScraperService(httpClientFactory);
             _differentGradeLinkScraperService = new DifferentGradeLinkScraperService(httpClientFactory);
             _absenceScraperService = new AbsenceScraperService(httpClientFactory);
+            _scheduleTableScraperService = new ScheduleTableScraperService(httpClientFactory);
         }
 
         [HttpPost("ScrapeSubjectsAndProfessors")]
@@ -84,8 +87,58 @@ namespace E_Dnevnik_API.Controllers
             // Return the result
             return actionResult;
         }
+        [HttpPost("ScrapeScheduleTable")]
+        public async Task<ActionResult<ScheduleResult>> ScrapeScheduleTable([FromBody] ScrapeRequest request)
+        {
+            // Call the service method that returns ScheduleResult
+            var actionResult = await _scheduleTableScraperService.ScrapeScheduleTable(request);
+
+            // Return the result
+            return actionResult;
+        }
+
+        [HttpPost("CalculateMissedClassPercentages")]
+        public async Task<ActionResult<Dictionary<string, double>>> CalculateMissedClassPercentages([FromBody] ScrapeRequest request)
+        {
+            // Retrieve schedule data to get total yearly hours per subject
+            var scheduleActionResult = await _scheduleTableScraperService.ScrapeScheduleTable(request);
+            if (!(scheduleActionResult.Result is OkObjectResult scheduleOkResult))
+            {
+                return BadRequest("Failed to retrieve schedule data.");
+            }
+            var scheduleData = (ScheduleResult)scheduleOkResult.Value;
+            var yearlyHours = _scheduleTableScraperService.CalculateYearlySubjectHours(scheduleData);
+
+            // Retrieve absence data to calculate days missed
+            var absencesActionResult = await _absenceScraperService.ScrapeAbsences(request);
+            if (!(absencesActionResult.Result is OkObjectResult absencesOkResult))
+            {
+                return BadRequest("Failed to retrieve absences data.");
+            }
+            var absencesData = (AbsencesResult)absencesOkResult.Value;
+            var daysMissed = _absenceScraperService.CalculateDaysMissed(absencesData);
+
+            // Calculate percentages
+            var missedPercentages = CalculateMissedPercentages(yearlyHours, daysMissed);
+
+            return Ok(missedPercentages);
+        }
+
+        private Dictionary<string, string> CalculateMissedPercentages(Dictionary<string, int> yearlyHours, Dictionary<string, int> daysMissed)
+        {
+            var percentages = new Dictionary<string, string>();
+
+            foreach (var subject in yearlyHours)
+            {
+                var totalHours = subject.Value;
+                var missedDays = daysMissed.ContainsKey(subject.Key) ? daysMissed[subject.Key] : 0;
+                var percentageMissed = (double)missedDays / totalHours * 100;
+                // Format the result to two decimal places and add a percentage sign
+                percentages[subject.Key] = $"{percentageMissed:N2}%";  // N2 formats the number to two decimal places
+            }
+
+            return percentages;
+        }
     }
-
-
 
 }

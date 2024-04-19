@@ -69,6 +69,10 @@ namespace E_Dnevnik_API.ScrapingServices
             var scrapeHtmlContent = await scrapeResponse.Content.ReadAsStringAsync();
             var scrapeData = await ExtractScrapeData(scrapeHtmlContent);
 
+            // Calculate days missed per subject
+            var daysMissedPerSubject = CalculateDaysMissed(scrapeData);
+            PrintDictionary(daysMissedPerSubject);
+
             return Ok(scrapeData);
         }
         private async Task<AbsencesResult> ExtractScrapeData(string htmlContent)
@@ -95,13 +99,43 @@ namespace E_Dnevnik_API.ScrapingServices
                     });
                 }
             }
-
             return new AbsencesResult
             {
                 Absences = absences.ToArray()
             };
         }
+        public Dictionary<string, int> CalculateDaysMissed(AbsencesResult absences)
+        {
+            // Dictionary to hold the count of days missed for each subject
+            var daysMissedPerSubject = new Dictionary<string, int>();
 
+            // Iterate over each absence record
+            foreach (var absence in absences.Absences)
+            {
+                // Iterate over each subject in the absence record
+                foreach (var subject in absence.Subjects)
+                {
+                    // If the subject has already been counted, increment the count
+                    if (daysMissedPerSubject.ContainsKey(subject))
+                    {
+                        daysMissedPerSubject[subject]++;
+                    }
+                    else // Otherwise, add the subject to the dictionary with a count of 1
+                    {
+                        daysMissedPerSubject[subject] = 1;
+                    }
+                }
+            }
+            return daysMissedPerSubject;
+        }
+
+
+        //printing the days missed
+        public void PrintDictionary(Dictionary<string, int> dictionary)
+        {
+            var dictionaryContents = string.Join(", ", dictionary.Select(kv => $"{kv.Key}: {kv.Value} days missed"));
+            Console.WriteLine(dictionaryContents);
+        }
     }
 
 }
