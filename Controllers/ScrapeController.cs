@@ -28,7 +28,7 @@ namespace E_Dnevnik_API.Controllers
         private readonly AbsenceScraperService _absenceScraperService;
         private readonly ScheduleTableScraperService _scheduleTableScraperService;
 
-
+        // Constructor to initialize the services
         public ScraperController(IHttpClientFactory httpClientFactory)
         {
             _subjectScraperService = new ScraperService(httpClientFactory);
@@ -39,6 +39,7 @@ namespace E_Dnevnik_API.Controllers
             _scheduleTableScraperService = new ScheduleTableScraperService(httpClientFactory);
         }
 
+        //function to scrape subjects and professors
         [HttpPost("ScrapeSubjectsAndProfessors")]
         public async Task<ActionResult<SubjectScrapeResult>> ScrapeSubjects([FromBody] ScrapeRequest request)
         {
@@ -48,7 +49,8 @@ namespace E_Dnevnik_API.Controllers
             // Return the result
             return actionResult;
         }
-
+        
+        //function to scrape student profile
         [HttpPost("ScrapeStudentProfile")]
         public async Task<ActionResult<StudentProfileResult>> ScrapeStudentProfile([FromBody] ScrapeRequest request)
         {
@@ -59,6 +61,7 @@ namespace E_Dnevnik_API.Controllers
             return actionResult;
         }
 
+        //function to scrape tests
         [HttpPost("ScrapeTests")]
         public async Task<ActionResult<TestResult>> ScrapeTests([FromBody] ScrapeRequest request)
         {
@@ -69,6 +72,7 @@ namespace E_Dnevnik_API.Controllers
             return actionResult;
         }
 
+        //function to scrape different grades
         [HttpPost("ScrapeDifferentGrades")]
         public async Task<ActionResult<List<GradeSubjectDetails>>> ScrapeDifferentGradeLink([FromBody] ScrapeRequest request)
         {
@@ -78,6 +82,8 @@ namespace E_Dnevnik_API.Controllers
             // Return the result
             return actionResult;
         }
+
+        //function to scrape absences
         [HttpPost("ScrapeAbsences")]
         public async Task<ActionResult<AbsencesResult>> ActionResult([FromBody] ScrapeRequest request)
         {
@@ -87,6 +93,8 @@ namespace E_Dnevnik_API.Controllers
             // Return the result
             return actionResult;
         }
+
+        //function to scrape schedule table
         [HttpPost("ScrapeScheduleTable")]
         public async Task<ActionResult<ScheduleResult>> ScrapeScheduleTable([FromBody] ScrapeRequest request)
         {
@@ -97,6 +105,7 @@ namespace E_Dnevnik_API.Controllers
             return actionResult;
         }
 
+        //calculate missed class percentages
         [HttpPost("CalculateMissedClassPercentages")]
         public async Task<ActionResult<Dictionary<string, double>>> CalculateMissedClassPercentages([FromBody] ScrapeRequest request)
         {
@@ -106,7 +115,7 @@ namespace E_Dnevnik_API.Controllers
             {
                 return BadRequest("Failed to retrieve schedule data.");
             }
-            var scheduleData = (ScheduleResult)scheduleOkResult.Value;
+            var scheduleData = scheduleOkResult.Value as ScheduleResult;
             var yearlyHours = _scheduleTableScraperService.CalculateYearlySubjectHours(scheduleData);
 
             // Retrieve absence data to calculate days missed
@@ -115,7 +124,7 @@ namespace E_Dnevnik_API.Controllers
             {
                 return BadRequest("Failed to retrieve absences data.");
             }
-            var absencesData = (AbsencesResult)absencesOkResult.Value;
+            AbsencesResult? absencesData = absencesOkResult.Value as AbsencesResult;
             var daysMissed = _absenceScraperService.CalculateDaysMissed(absencesData);
 
             // Calculate percentages
@@ -123,7 +132,7 @@ namespace E_Dnevnik_API.Controllers
 
             return Ok(missedPercentages);
         }
-
+        //function to calculate missed class percentages
         private Dictionary<string, string> CalculateMissedPercentages(Dictionary<string, int> yearlyHours, Dictionary<string, int> daysMissed)
         {
             var percentages = new Dictionary<string, string>();
@@ -133,12 +142,14 @@ namespace E_Dnevnik_API.Controllers
                 var totalHours = subject.Value;
                 var missedDays = daysMissed.ContainsKey(subject.Key) ? daysMissed[subject.Key] : 0;
                 var percentageMissed = (double)missedDays / totalHours * 100;
-                // Format the result to two decimal places and add a percentage sign
-                percentages[subject.Key] = $"{percentageMissed:N2}%";  // N2 formats the number to two decimal places
+                // Format the result to two decimal places and add a percentage sign, N2 formats the number to two decimal places
+                percentages[subject.Key] = $"{percentageMissed:N2}%";  
             }
 
             return percentages;
         }
+    
+        
     }
 
 }
