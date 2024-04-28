@@ -72,28 +72,49 @@ namespace E_Dnevnik_API.ScrapingServices
             return Ok(scrapeData);
         }
 
-        //TODO: Implement the method that extracts the data from the HTML content once I get access to a new grade link that actually has a new grade
+        //method that extracts the data from the HTML content once I get access to a new grade link that actually has a new grade
         private async Task<NewGradesResult> ExtractScrapeData(string htmlContent)
         {
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(htmlContent);
 
             var newGradeNodes = htmlDoc.DocumentNode.SelectNodes("//div[@id='flex-table new-grades-table']");
-            if(newGradeNodes != null)
+            var grades = new List<NewGrades>();
+
+            if (newGradeNodes != null)
             {
                 foreach (var gradeNode in newGradeNodes)
                 {
-                    Console.WriteLine(gradeNode.InnerText);
+                    // Extract grade details (date, note, element of grading, and grade)
+                    var subjectName = gradeNode.SelectSingleNode(".//div[@class='row header first']//div[@class='cell']")?.InnerText;
+
+                    var dateOfGrade = gradeNode.SelectSingleNode(".//div[@class='row ']//div[@class='cell']/span")?.InnerText;
+
+                    var description = gradeNode.SelectSingleNode(".//div[@class='row ']//div[@class='box']//div[@class='cell ']")?.InnerText;
+
+                    var grade = gradeNode.SelectSingleNode(".//div[@class='row ']//div[@class='box']//div[@class='cell'][2]")?.InnerText;
+
+                    var elementOfEvaluation = gradeNode.SelectSingleNode(".//div[@class='row ']//div[@class='box']//div[@class='cell'][1]")?.InnerText;
+
+                    grades.Add(new NewGrades
+                    {
+                        Date = dateOfGrade,
+                        Description = description,
+                        SubjectName = subjectName,
+                        GradeNumber = grade,
+                        ElementOfEvaluation = elementOfEvaluation
+                    });
                 }
             }
             else
             {
+                // No new grades found
                 Console.WriteLine("No new grades found.");
             }
-            var grades = new List<NewGrades>();
+
             return new NewGradesResult
             {
-                Grades = grades
+                Grades = grades.Count > 0 ? grades : null
             };
         }
 
