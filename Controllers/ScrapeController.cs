@@ -14,6 +14,7 @@ using E_Dnevnik_API.Models.DifferentGradeLinks;
 using System.Runtime.CompilerServices;
 using E_Dnevnik_API.Models.Absences_izostanci;
 using E_Dnevnik_API.Models.ScheduleTable;
+using E_Dnevnik_API.Models.NewGrades;
 
 namespace E_Dnevnik_API.Controllers
 {
@@ -27,6 +28,7 @@ namespace E_Dnevnik_API.Controllers
         private readonly DifferentGradeLinkScraperService _differentGradeLinkScraperService;
         private readonly AbsenceScraperService _absenceScraperService;
         private readonly ScheduleTableScraperService _scheduleTableScraperService;
+        private readonly NewGradesScraperService _newGradesScraperService;
 
         // Constructor to initialize the services
         public ScraperController(IHttpClientFactory httpClientFactory)
@@ -37,6 +39,7 @@ namespace E_Dnevnik_API.Controllers
             _differentGradeLinkScraperService = new DifferentGradeLinkScraperService(httpClientFactory);
             _absenceScraperService = new AbsenceScraperService(httpClientFactory);
             _scheduleTableScraperService = new ScheduleTableScraperService(httpClientFactory);
+            _newGradesScraperService = new NewGradesScraperService(httpClientFactory);
         }
 
         //function to scrape subjects and professors
@@ -100,6 +103,17 @@ namespace E_Dnevnik_API.Controllers
         {
             // Call the service method that returns ScheduleResult
             var actionResult = await _scheduleTableScraperService.ScrapeScheduleTable(request);
+
+            // Return the result
+            return actionResult;
+        }
+
+        //function to scrape new grades
+        [HttpPost("ScrapeNewGrades")]
+        public async Task<ActionResult<NewGradesResult>> ScrapeNewGrades([FromBody] ScrapeRequest request)
+        {
+            // Call the service method that returns NewGradesResult
+            var actionResult = await _newGradesScraperService.ScrapeNewGrades(request);
 
             // Return the result
             return actionResult;

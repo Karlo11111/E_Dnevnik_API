@@ -15,7 +15,7 @@ namespace E_Dnevnik_API.ScrapingServices
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<ActionResult<NewGradesResult>> ScrapeAbsences([FromBody] ScrapeRequest request)
+        public async Task<ActionResult<NewGradesResult>> ScrapeNewGrades([FromBody] ScrapeRequest request)
         {
             var handler = new HttpClientHandler
             {
@@ -78,8 +78,18 @@ namespace E_Dnevnik_API.ScrapingServices
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(htmlContent);
 
-            var date = htmlDoc.DocumentNode.SelectSingleNode("//div[@id='section-text no-title']").InnerText;
-
+            var newGradeNodes = htmlDoc.DocumentNode.SelectNodes("//div[@id='flex-table new-grades-table']");
+            if(newGradeNodes != null)
+            {
+                foreach (var gradeNode in newGradeNodes)
+                {
+                    Console.WriteLine(gradeNode.InnerText);
+                }
+            }
+            else
+            {
+                Console.WriteLine("No new grades found.");
+            }
             var grades = new List<NewGrades>();
             return new NewGradesResult
             {
