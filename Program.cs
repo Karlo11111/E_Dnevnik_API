@@ -3,10 +3,11 @@ using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Kestrel to listen on port 3333 for all network interfaces
+// Configure Kestrel to listen on the Heroku-assigned port or default to 5168
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5168";
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.ListenAnyIP(5168); // Bind to all network interfaces on port 3333
+    options.ListenAnyIP(int.Parse(port)); // Bind to all network interfaces on the specified port
 });
 
 // Add services to the container.
