@@ -3,20 +3,26 @@ using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure Kestrel to listen on port 3333 for all network interfaces
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(5168); // Bind to all network interfaces on port 3333
+});
+
 // Add services to the container.
-builder.Services.AddDistributedMemoryCache(); // Adds a default in-memory implementation of IDistributedCache
+builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(30); // Use a short timeout for testing purposes
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
     options.Cookie.HttpOnly = true;
-    options.Cookie.IsEssential = true; // Make the session cookie essential
+    options.Cookie.IsEssential = true;
 });
 
 // Existing HttpClient configuration for ScraperClient
 builder.Services.AddHttpClient("ScraperClient", client =>
 {
     client.BaseAddress = new Uri("https://ocjene.skole.hr/login");
-    client.DefaultRequestHeaders.Add("Accept", "application/json"); // If you expect JSON responses
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
 }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
 {
     UseCookies = true,
@@ -38,6 +44,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseAuthorization();
-app.UseSession(); // Add this before UseRouting or MapControllers
+app.UseSession();
 app.MapControllers();
 app.Run();
