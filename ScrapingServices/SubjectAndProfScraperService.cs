@@ -1,13 +1,14 @@
-﻿using HtmlAgilityPack;
-using Microsoft.AspNetCore.Mvc;
+﻿using System.Net;
+using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
-using Newtonsoft.Json;
-using System.Net.Http;
 using System.Text.RegularExpressions;
-using System.Net;
-using E_Dnevnik_API.Models.ScrapeSubjects;
 using E_Dnevnik_API.Models.ScrapeStudentProfile;
+using E_Dnevnik_API.Models.ScrapeSubjects;
+using HtmlAgilityPack;
+using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
 
 namespace E_Dnevnik_API.ScrapingServices
 {
@@ -21,12 +22,14 @@ namespace E_Dnevnik_API.ScrapingServices
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<ActionResult<SubjectScrapeResult>> ScrapeSubjects([FromBody] ScrapeRequest request)
+        public async Task<ActionResult<SubjectScrapeResult>> ScrapeSubjects(
+            [FromBody] ScrapeRequest request
+        )
         {
             var handler = new HttpClientHandler
             {
                 UseCookies = true,
-                CookieContainer = new CookieContainer()
+                CookieContainer = new CookieContainer(),
             };
 
             using var httpClient = new HttpClient(handler);
@@ -41,22 +44,26 @@ namespace E_Dnevnik_API.ScrapingServices
             var loginPageContent = await loginPageResponse.Content.ReadAsStringAsync();
             var loginUrl = "https://ocjene.skole.hr/login";
 
-
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(loginPageContent);
-            var csrfToken = htmlDoc.DocumentNode.SelectSingleNode("//input[@name='csrf_token']")
-                            ?.Attributes["value"]?.Value;
+            var csrfToken = htmlDoc
+                .DocumentNode.SelectSingleNode("//input[@name='csrf_token']")
+                ?.Attributes["value"]
+                ?.Value;
 
             if (string.IsNullOrEmpty(csrfToken))
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, "CSRF token not found.");
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    "CSRF token not found."
+                );
             }
 
             var formData = new Dictionary<string, string>
             {
                 ["username"] = request.Email,
                 ["password"] = request.Password,
-                ["csrf_token"] = csrfToken
+                ["csrf_token"] = csrfToken,
             };
 
             var loginContent = new FormUrlEncodedContent(formData);
@@ -71,13 +78,14 @@ namespace E_Dnevnik_API.ScrapingServices
             var scrapeResponse = await httpClient.GetAsync("https://ocjene.skole.hr/course");
             if (!scrapeResponse.IsSuccessStatusCode)
             {
-                return StatusCode((int)scrapeResponse.StatusCode, "Failed to retrieve subject information.");
+                return StatusCode(
+                    (int)scrapeResponse.StatusCode,
+                    "Failed to retrieve subject information."
+                );
             }
 
             var scrapeHtmlContent = await scrapeResponse.Content.ReadAsStringAsync();
             var scrapeData = await ExtractScrapeData(scrapeHtmlContent);
-
-
 
             return Ok(scrapeData);
         }
@@ -91,24 +99,35 @@ namespace E_Dnevnik_API.ScrapingServices
             var courseNodes = htmlDoc.DocumentNode.SelectNodes("//ul[@class='list']/li/a");
             var subjectList = new List<SubjectInfo>();
 
-
             //getting the each nodes of the course class
             if (courseNodes != null)
             {
                 foreach (var aNode in courseNodes)
                 {
-                    var subjectNameNode = aNode.SelectSingleNode(".//div[@class='course-info']/span[1]");
-                    var professorNameNode = aNode.SelectSingleNode(".//div[@class='course-info']/span[2]");
-                    var gradeNode = aNode.SelectSingleNode(".//div[@class='list-average-grade ']/span");
+                    var subjectNameNode = aNode.SelectSingleNode(
+                        ".//div[@class='course-info']/span[1]"
+                    );
+                    var professorNameNode = aNode.SelectSingleNode(
+                        ".//div[@class='course-info']/span[2]"
+                    );
+                    var gradeNode = aNode.SelectSingleNode(
+                        ".//div[@class='list-average-grade ']/span"
+                    );
 
                     //subject id
-                    string hrefValue = ExtractNumbers(aNode.GetAttributeValue("href", string.Empty));
+                    string hrefValue = ExtractNumbers(
+                        aNode.GetAttributeValue("href", string.Empty)
+                    );
 
-                    var subjectName = subjectNameNode != null ? CleanText(subjectNameNode.InnerText) : "N/A";
-                    var professorName = professorNameNode != null ? CleanText(professorNameNode.InnerText) : "N/A";
+                    var subjectName =
+                        subjectNameNode != null ? CleanText(subjectNameNode.InnerText) : "N/A";
+                    var professorName =
+                        professorNameNode != null ? CleanText(professorNameNode.InnerText) : "N/A";
                     var gradeText = gradeNode != null ? CleanText(gradeNode.InnerText) : "N/A";
 
-                    subjectList.Add(new SubjectInfo(subjectName, professorName, gradeText, hrefValue));
+                    subjectList.Add(
+                        new SubjectInfo(subjectName, professorName, gradeText, hrefValue)
+                    );
                 }
             }
 
@@ -136,7 +155,6 @@ namespace E_Dnevnik_API.ScrapingServices
             return number;
         }
 
-
         // Cleans the text by removing leading and trailing whitespace and replacing sequences of whitespace characters with a single space
         private string CleanText(string text)
         {
@@ -149,5 +167,4 @@ namespace E_Dnevnik_API.ScrapingServices
             return text;
         }
     }
-
 }

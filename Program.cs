@@ -1,5 +1,5 @@
-using E_Dnevnik_API.ScrapingServices;
 using System.Net;
+using E_Dnevnik_API.ScrapingServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,7 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5168";
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.ListenAnyIP(int.Parse(port)); // Bind to all network interfaces on the specified port
+    options.Listen(IPAddress.Any, int.Parse(port)); // Bind to all network interfaces
 });
 
 // Add services to the container.
@@ -20,15 +20,18 @@ builder.Services.AddSession(options =>
 });
 
 // Existing HttpClient configuration for ScraperClient
-builder.Services.AddHttpClient("ScraperClient", client =>
-{
-    client.BaseAddress = new Uri("https://ocjene.skole.hr/login");
-    client.DefaultRequestHeaders.Add("Accept", "application/json");
-}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
-{
-    UseCookies = true,
-    CookieContainer = new CookieContainer()
-});
+builder
+    .Services.AddHttpClient(
+        "ScraperClient",
+        client =>
+        {
+            client.BaseAddress = new Uri("https://ocjene.skole.hr/login");
+            client.DefaultRequestHeaders.Add("Accept", "application/json");
+        }
+    )
+    .ConfigurePrimaryHttpMessageHandler(
+        () => new HttpClientHandler { UseCookies = true, CookieContainer = new CookieContainer() }
+    );
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

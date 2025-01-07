@@ -1,26 +1,29 @@
-﻿using E_Dnevnik_API.Models.Absences_izostanci;
+﻿using System.Net;
+using E_Dnevnik_API.Models.Absences_izostanci;
 using E_Dnevnik_API.Models.NewGrades;
 using E_Dnevnik_API.Models.ScrapeSubjects;
 using HtmlAgilityPack;
 using Microsoft.AspNetCore.Mvc;
-using System.Net;
 
 namespace E_Dnevnik_API.ScrapingServices
 {
     public class NewGradesScraperService : ControllerBase
     {
         private readonly IHttpClientFactory _httpClientFactory;
+
         public NewGradesScraperService(IHttpClientFactory httpClientFactory)
         {
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<ActionResult<NewGradesResult>> ScrapeNewGrades([FromBody] ScrapeRequest request)
+        public async Task<ActionResult<NewGradesResult>> ScrapeNewGrades(
+            [FromBody] ScrapeRequest request
+        )
         {
             var handler = new HttpClientHandler
             {
                 UseCookies = true,
-                CookieContainer = new CookieContainer()
+                CookieContainer = new CookieContainer(),
             };
 
             using var httpClient = new HttpClient(handler);
@@ -36,19 +39,24 @@ namespace E_Dnevnik_API.ScrapingServices
 
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(loginPageContent);
-            var csrfToken = htmlDoc.DocumentNode.SelectSingleNode("//input[@name='csrf_token']")
-                            ?.Attributes["value"]?.Value;
+            var csrfToken = htmlDoc
+                .DocumentNode.SelectSingleNode("//input[@name='csrf_token']")
+                ?.Attributes["value"]
+                ?.Value;
 
             if (string.IsNullOrEmpty(csrfToken))
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, "CSRF token not found.");
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    "CSRF token not found."
+                );
             }
 
             var formData = new Dictionary<string, string>
             {
                 ["username"] = request.Email,
                 ["password"] = request.Password,
-                ["csrf_token"] = csrfToken
+                ["csrf_token"] = csrfToken,
             };
 
             var loginContent = new FormUrlEncodedContent(formData);
@@ -63,7 +71,10 @@ namespace E_Dnevnik_API.ScrapingServices
             var scrapeResponse = await httpClient.GetAsync("https://ocjene.skole.hr/grade/new");
             if (!scrapeResponse.IsSuccessStatusCode)
             {
-                return StatusCode((int)scrapeResponse.StatusCode, "Failed to retrieve subject information.");
+                return StatusCode(
+                    (int)scrapeResponse.StatusCode,
+                    "Failed to retrieve subject information."
+                );
             }
 
             var scrapeHtmlContent = await scrapeResponse.Content.ReadAsStringAsync();
@@ -78,7 +89,9 @@ namespace E_Dnevnik_API.ScrapingServices
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(htmlContent);
 
-            var newGradeNodes = htmlDoc.DocumentNode.SelectNodes("//div[@id='flex-table new-grades-table']");
+            var newGradeNodes = htmlDoc.DocumentNode.SelectNodes(
+                "//div[@id='flex-table new-grades-table']"
+            );
             var grades = new List<NewGrades>();
 
             if (newGradeNodes != null)
@@ -86,24 +99,42 @@ namespace E_Dnevnik_API.ScrapingServices
                 foreach (var gradeNode in newGradeNodes)
                 {
                     // Extract grade details (date, note, element of grading, and grade)
-                    var subjectName = gradeNode.SelectSingleNode(".//div[@class='row header first']//div[@class='cell']")?.InnerText;
+                    var subjectName = gradeNode
+                        .SelectSingleNode(".//div[@class='row header first']//div[@class='cell']")
+                        ?.InnerText;
 
-                    var dateOfGrade = gradeNode.SelectSingleNode(".//div[@class='row ']//div[@class='cell']/span")?.InnerText;
+                    var dateOfGrade = gradeNode
+                        .SelectSingleNode(".//div[@class='row ']//div[@class='cell']/span")
+                        ?.InnerText;
 
-                    var description = gradeNode.SelectSingleNode(".//div[@class='row ']//div[@class='box']//div[@class='cell ']")?.InnerText;
+                    var description = gradeNode
+                        .SelectSingleNode(
+                            ".//div[@class='row ']//div[@class='box']//div[@class='cell ']"
+                        )
+                        ?.InnerText;
 
-                    var grade = gradeNode.SelectSingleNode(".//div[@class='row ']//div[@class='box']//div[@class='cell'][2]")?.InnerText;
+                    var grade = gradeNode
+                        .SelectSingleNode(
+                            ".//div[@class='row ']//div[@class='box']//div[@class='cell'][2]"
+                        )
+                        ?.InnerText;
 
-                    var elementOfEvaluation = gradeNode.SelectSingleNode(".//div[@class='row ']//div[@class='box']//div[@class='cell'][1]")?.InnerText;
+                    var elementOfEvaluation = gradeNode
+                        .SelectSingleNode(
+                            ".//div[@class='row ']//div[@class='box']//div[@class='cell'][1]"
+                        )
+                        ?.InnerText;
 
-                    grades.Add(new NewGrades
-                    {
-                        Date = dateOfGrade,
-                        Description = description,
-                        SubjectName = subjectName,
-                        GradeNumber = grade,
-                        ElementOfEvaluation = elementOfEvaluation
-                    });
+                    grades.Add(
+                        new NewGrades
+                        {
+                            Date = dateOfGrade,
+                            Description = description,
+                            SubjectName = subjectName,
+                            GradeNumber = grade,
+                            ElementOfEvaluation = elementOfEvaluation,
+                        }
+                    );
                 }
             }
             else
@@ -112,11 +143,7 @@ namespace E_Dnevnik_API.ScrapingServices
                 Console.WriteLine("No new grades found.");
             }
 
-            return new NewGradesResult
-            {
-                Grades = grades.Count > 0 ? grades : null
-            };
+            return new NewGradesResult { Grades = grades.Count > 0 ? grades : null };
         }
-
     }
 }

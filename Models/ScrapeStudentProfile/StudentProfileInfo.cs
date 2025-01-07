@@ -7,5 +7,7 @@
         public string? StudentSchoolYear { get; set; }
         public string? StudentGrade { get; set; }
         public string? StudentName { get; set; }
+        public string? ClassMaster { get; set; }
+        public string? StudentProgram { get; set; }
     }
 }
