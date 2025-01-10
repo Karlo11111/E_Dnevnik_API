@@ -11,6 +11,7 @@ using E_Dnevnik_API.Models.ScheduleTable;
 using E_Dnevnik_API.Models.ScrapeStudentProfile;
 using E_Dnevnik_API.Models.ScrapeSubjects;
 using E_Dnevnik_API.Models.ScrapeTests;
+using E_Dnevnik_API.Models.SpecificSubject;
 using E_Dnevnik_API.ScrapingServices;
 using HtmlAgilityPack;
 using Microsoft.AspNetCore.Mvc;
@@ -23,6 +24,7 @@ namespace E_Dnevnik_API.Controllers
     public class ScraperController : ControllerBase
     {
         private readonly ScraperService _subjectScraperService;
+        private readonly SpecificSubjectScraperService _specificSubjectScraperService;
         private readonly TestScraperService _testScraperService;
         private readonly StudentProfileScraperService _studentProfileScraperService;
         private readonly DifferentGradeLinkScraperService _differentGradeLinkScraperService;
@@ -39,6 +41,7 @@ namespace E_Dnevnik_API.Controllers
             _differentGradeLinkScraperService = new DifferentGradeLinkScraperService(
                 httpClientFactory
             );
+            _specificSubjectScraperService = new SpecificSubjectScraperService(httpClientFactory);
             _absenceScraperService = new AbsenceScraperService(httpClientFactory);
             _scheduleTableScraperService = new ScheduleTableScraperService(httpClientFactory);
             _newGradesScraperService = new NewGradesScraperService(httpClientFactory);
@@ -52,6 +55,28 @@ namespace E_Dnevnik_API.Controllers
         {
             // Call the service method that returns ScrapeResult
             var actionResult = await _subjectScraperService.ScrapeSubjects(request);
+
+            // Return the result
+            return actionResult;
+        }
+
+        [HttpPost("ScrapeSpecificSubjectGrades")]
+        public async Task<ActionResult<SubjectDetails>> ScrapeSpecificSubjectGrades(
+            [FromBody] ScrapeRequest request,
+            [FromQuery] string subjectId
+        )
+        {
+            // Validate the subjectId
+            if (string.IsNullOrEmpty(subjectId))
+            {
+                return BadRequest("Subject ID must be provided.");
+            }
+
+            // Call the service method that scrapes grades for the specific subject
+            var actionResult = await _specificSubjectScraperService.ScrapeSubjects(
+                request,
+                subjectId
+            );
 
             // Return the result
             return actionResult;

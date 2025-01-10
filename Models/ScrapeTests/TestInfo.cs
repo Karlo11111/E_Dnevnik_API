@@ -5,12 +5,12 @@
         public TestInfo(string testName, string testDescription, string testDate)
         {
             TestName = testName;
-            TestDescription= testDescription;
+            TestDescription = testDescription;
             TestDate = testDate;
         }
+
         public string TestName { get; set; }
         public string TestDescription { get; set; }
         public string TestDate { get; set; }
-        
     }
 }

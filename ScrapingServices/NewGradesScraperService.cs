@@ -109,7 +109,7 @@ namespace E_Dnevnik_API.ScrapingServices
 
                     var description = gradeNode
                         .SelectSingleNode(
-                            ".//div[@class='row ']//div[@class='box']//div[@class='cell ']"
+                            ".//div[@class='row ']//div[@class='box']//div[@class='cell ']/span"
                         )
                         ?.InnerText;
 

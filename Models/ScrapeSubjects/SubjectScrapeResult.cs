@@ -6,6 +6,5 @@ namespace E_Dnevnik_API.Models.ScrapeSubjects
     {
         [JsonProperty(Order = 1)]
         public List<SubjectInfo>? Subjects { get; set; }
-
     }
 }
