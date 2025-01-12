@@ -4,6 +4,7 @@ namespace E_Dnevnik_API.Models.SpecificSubject
     {
         public List<EvaluationElement> EvaluationElements { get; set; }
         public List<MonthlyGrades> MonthlyGrades { get; set; }
+        public string FinalGrade { get; set; }
     }
 
     public class EvaluationElement

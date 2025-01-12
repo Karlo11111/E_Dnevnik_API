@@ -97,6 +97,10 @@ namespace E_Dnevnik_API.ScrapingServices
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(htmlContent);
 
+            var finalGradeRow = htmlDoc.DocumentNode.SelectSingleNode(
+                "//div[@class='flex-table s  grades-table ']//div[@class='row final-grade ']/span"
+            );
+
             // Extract the "Elementi vrednovanja" table
             var evaluationElements = ExtractEvaluationElements(htmlDoc);
 
@@ -107,6 +111,7 @@ namespace E_Dnevnik_API.ScrapingServices
             {
                 EvaluationElements = evaluationElements,
                 MonthlyGrades = monthlyGrades,
+                FinalGrade = finalGradeRow?.InnerText.Trim() ?? "N/A",
             };
         }
 
