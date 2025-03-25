@@ -104,11 +104,15 @@ namespace E_Dnevnik_API.ScrapingServices
                         ?.InnerText;
 
                     var testSubject = testNode
-                        .SelectSingleNode("./div[@class='box']/div[@class='cell'][1]/span")
+                        .SelectSingleNode(
+                            ".//div[@class='row']//div[@class='box']/div[@class='cell'][1]/span"
+                        )
                         ?.InnerText;
 
                     var description = testNode
-                        .SelectSingleNode("./div[@class='box']/div[@class='cell'][2]/span")
+                        .SelectSingleNode(
+                            ".//div[@class='row']//div[@class='box']/div[@class='cell'][2]/span"
+                        )
                         ?.InnerText;
 
                     tests.Add(
