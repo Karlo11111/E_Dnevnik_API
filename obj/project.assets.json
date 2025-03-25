@@ -1703,19 +1703,19 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Karlo\\.nuget\\packages\\": {}
+    "C:\\Users\\Učenik\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\ASP.NET_CORE-projects\\E_Dnevnik_API\\E_Dnevnik_API\\E_Dnevnik_API\\E_Dnevnik_API.csproj",
+      "projectUniqueName": "C:\\Users\\Učenik\\Documents\\KarloCiciliani\\Ednevnik\\E_Dnevnik_API\\E_Dnevnik_API.csproj",
       "projectName": "E_Dnevnik_API",
-      "projectPath": "D:\\ASP.NET_CORE-projects\\E_Dnevnik_API\\E_Dnevnik_API\\E_Dnevnik_API\\E_Dnevnik_API.csproj",
-      "packagesPath": "C:\\Users\\Karlo\\.nuget\\packages\\",
-      "outputPath": "D:\\ASP.NET_CORE-projects\\E_Dnevnik_API\\E_Dnevnik_API\\E_Dnevnik_API\\obj\\",
+      "projectPath": "C:\\Users\\Učenik\\Documents\\KarloCiciliani\\Ednevnik\\E_Dnevnik_API\\E_Dnevnik_API.csproj",
+      "packagesPath": "C:\\Users\\Učenik\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\Učenik\\Documents\\KarloCiciliani\\Ednevnik\\E_Dnevnik_API\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\Karlo\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "C:\\Users\\Učenik\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net8.0"

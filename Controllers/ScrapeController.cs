@@ -11,6 +11,7 @@ using E_Dnevnik_API.Models.ScheduleTable;
 using E_Dnevnik_API.Models.ScrapeStudentProfile;
 using E_Dnevnik_API.Models.ScrapeSubjects;
 using E_Dnevnik_API.Models.ScrapeTests;
+using E_Dnevnik_API.Models.NewTests;
 using E_Dnevnik_API.Models.SpecificSubject;
 using E_Dnevnik_API.ScrapingServices;
 using HtmlAgilityPack;
@@ -31,6 +32,7 @@ namespace E_Dnevnik_API.Controllers
         private readonly AbsenceScraperService _absenceScraperService;
         private readonly ScheduleTableScraperService _scheduleTableScraperService;
         private readonly NewGradesScraperService _newGradesScraperService;
+        private readonly NewTestsScraperService _newTestsScraperService;
 
         // Constructor to initialize the services
         public ScraperController(IHttpClientFactory httpClientFactory)
@@ -45,6 +47,7 @@ namespace E_Dnevnik_API.Controllers
             _absenceScraperService = new AbsenceScraperService(httpClientFactory);
             _scheduleTableScraperService = new ScheduleTableScraperService(httpClientFactory);
             _newGradesScraperService = new NewGradesScraperService(httpClientFactory);
+            _newTestsScraperService = new NewTestsScraperService(httpClientFactory);
         }
 
         //function to scrape subjects and professors
@@ -155,6 +158,19 @@ namespace E_Dnevnik_API.Controllers
         {
             // Call the service method that returns NewGradesResult
             var actionResult = await _newGradesScraperService.ScrapeNewGrades(request);
+
+            // Return the result
+            return actionResult;
+        }
+
+        //function to scrape new tests
+        [HttpPost("ScrapeNewTests")]
+        public async Task<ActionResult<NewTestsResult>> ScrapeNewTests(
+            [FromBody] ScrapeRequest request
+        )
+        {
+            // Call the service method that returns NewGradesResult
+            var actionResult = await _newTestsScraperService.ScrapeNewTests(request);
 
             // Return the result
             return actionResult;

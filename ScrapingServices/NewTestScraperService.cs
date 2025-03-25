@@ -1,22 +1,22 @@
-﻿using System.Net;
+using System.Net;
 using E_Dnevnik_API.Models.Absences_izostanci;
-using E_Dnevnik_API.Models.NewGrades;
+using E_Dnevnik_API.Models.NewTests;
 using E_Dnevnik_API.Models.ScrapeSubjects;
 using HtmlAgilityPack;
 using Microsoft.AspNetCore.Mvc;
 
 namespace E_Dnevnik_API.ScrapingServices
 {
-    public class NewGradesScraperService : ControllerBase
+    public class NewTestsScraperService : ControllerBase
     {
         private readonly IHttpClientFactory _httpClientFactory;
 
-        public NewGradesScraperService(IHttpClientFactory httpClientFactory)
+        public NewTestsScraperService(IHttpClientFactory httpClientFactory)
         {
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<ActionResult<NewGradesResult>> ScrapeNewGrades(
+        public async Task<ActionResult<NewTestsResult>> ScrapeNewTests(
             [FromBody] ScrapeRequest request
         )
         {
@@ -68,7 +68,7 @@ namespace E_Dnevnik_API.ScrapingServices
                 return StatusCode((int)loginResponse.StatusCode, "Failed to log in.");
             }
 
-            var scrapeResponse = await httpClient.GetAsync("https://ocjene.skole.hr/grade/new");
+            var scrapeResponse = await httpClient.GetAsync("https://ocjene.skole.hr/exam/new");
             if (!scrapeResponse.IsSuccessStatusCode)
             {
                 return StatusCode(
@@ -84,55 +84,41 @@ namespace E_Dnevnik_API.ScrapingServices
         }
 
         //method that extracts the data from the HTML content once I get access to a new grade link that actually has a new grade
-        private async Task<NewGradesResult> ExtractScrapeData(string htmlContent)
+        private async Task<NewTestsResult> ExtractScrapeData(string htmlContent)
         {
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(htmlContent);
 
-            var newGradeNodes = htmlDoc.DocumentNode.SelectNodes(
-                "//div[@class='flex-table new-grades-table']"
+            var newTestNodes = htmlDoc.DocumentNode.SelectNodes(
+                "//div[@class='flex-table new-exam-table']"
             );
-            var grades = new List<NewGrades>();
+            var tests = new List<NewTests>();
 
-            if (newGradeNodes != null)
+            if (newTestNodes != null)
             {
-                foreach (var gradeNode in newGradeNodes)
+                foreach (var testNode in newTestNodes)
                 {
                     // Extract grade details (date, note, element of grading, and grade)
-                    var subjectName = gradeNode
-                        .SelectSingleNode(".//div[@class='row header first']//div[@class='cell']")
+                    var testSubject = testNode
+                        .SelectSingleNode(".//div[@class='row']//div[@class='box']//div[@class='cell']/span")
                         ?.InnerText;
 
-                    var dateOfGrade = gradeNode
+                    var dateOfGrade = testNode
                         .SelectSingleNode(".//div[@class='row ']//div[@class='cell']/span")
                         ?.InnerText;
 
-                    var description = gradeNode
+                    var description = testNode
                         .SelectSingleNode(
-                            ".//div[@class='row ']//div[@class='box']//div[@class='cell ']/span"
+                            ".//div[@class='row']//div[@class='cell']/span"
                         )
                         ?.InnerText;
 
-                    var grade = gradeNode
-                        .SelectSingleNode(
-                            ".//div[@class='row ']//div[@class='box']//div[@class='cell'][2]"
-                        )
-                        ?.InnerText;
-
-                    var elementOfEvaluation = gradeNode
-                        .SelectSingleNode(
-                            ".//div[@class='row ']//div[@class='box']//div[@class='cell'][1]"
-                        )
-                        ?.InnerText;
-
-                    grades.Add(
-                        new NewGrades
+                    tests.Add(
+                        new NewTests
                         {
                             Date = dateOfGrade,
                             Description = description,
-                            SubjectName = subjectName,
-                            GradeNumber = grade,
-                            ElementOfEvaluation = elementOfEvaluation,
+                            TestSubject = testSubject,
                         }
                     );
                 }
@@ -140,10 +126,10 @@ namespace E_Dnevnik_API.ScrapingServices
             else
             {
                 // No new grades found
-                Console.WriteLine("No new grades found.");
+                Console.WriteLine("No new test found.");
             }
 
-            return new NewGradesResult { Grades = grades.Count > 0 ? grades : null };
+            return new NewTestsResult { Tests = tests.Count > 0 ? tests : null };
         }
     }
 }
