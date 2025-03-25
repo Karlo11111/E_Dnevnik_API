@@ -99,18 +99,16 @@ namespace E_Dnevnik_API.ScrapingServices
                 foreach (var testNode in newTestNodes)
                 {
                     // Extract grade details (date, note, element of grading, and grade)
-                    var testSubject = testNode
-                        .SelectSingleNode(".//div[@class='row']//div[@class='box']//div[@class='cell']/span")
+                    var dateOfGrade = testNode
+                        .SelectSingleNode(".//div[@class='row']//div[@class='cell']/span")
                         ?.InnerText;
 
-                    var dateOfGrade = testNode
-                        .SelectSingleNode(".//div[@class='row ']//div[@class='cell']/span")
+                    var testSubject = testNode
+                        .SelectSingleNode("./div[@class='box']/div[@class='cell'][1]/span")
                         ?.InnerText;
 
                     var description = testNode
-                        .SelectSingleNode(
-                            ".//div[@class='row']//div[@class='cell']/span"
-                        )
+                        .SelectSingleNode("./div[@class='box']/div[@class='cell'][2]/span")
                         ?.InnerText;
 
                     tests.Add(

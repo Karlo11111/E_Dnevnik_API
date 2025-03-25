@@ -197,8 +197,8 @@ namespace E_Dnevnik_API.ScrapingServices
                     // Removes leading and trailing whitespace
                     text = text.Trim();
 
-                    // Allow Croatian letters (č, ć, š, đ, ž) along with basic Latin characters and digits
-                    text = Regex.Replace(text, @"[^a-zA-Z0-9čćšđžČĆŠĐŽ\s/]", "");
+                    // Allow Croatian letters (č, ć, š, đ, ž), basic Latin characters, digits, spaces, forward slashes, and commas
+                    text = Regex.Replace(text, @"[^a-zA-Z0-9čćšđžČĆŠĐŽ\s/,]", "");
 
                     // Replaces sequences of whitespace characters with a single space
                     return Regex.Replace(text, "\\s+", " ");
