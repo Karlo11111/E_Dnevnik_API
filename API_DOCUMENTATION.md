@@ -47,7 +47,7 @@ Content-Type: application/json
 
 {
   "email": "ime.prezime@skole.hr",
-  "password": "vasa-lozinka"
+  "password": "<your-ednevnik-password>"
 }
 ```
 
@@ -534,7 +534,7 @@ Content-Type: application/json
 
 {
   "email": "luka.lukic@skole.hr",
-  "password": "moja-lozinka"
+  "password": "<your-ednevnik-password>"
 }
 ```
 Response:

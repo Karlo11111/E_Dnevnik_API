@@ -45,7 +45,7 @@ server-side** — only the resulting e-Dnevnik session cookies, held in memory f
 POST /api/Login
 Content-Type: application/json
 
-{ "email": "ime.prezime@skole.hr", "password": "lozinka" }
+{ "email": "ime.prezime@skole.hr", "password": "<your-ednevnik-password>" }
 
 → 200: { "token": "base64encodedtoken==" }
 → 400: "Email i lozinka moraju biti uneseni."
