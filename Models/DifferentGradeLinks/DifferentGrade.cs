@@ -2,8 +2,8 @@
 {
     public class DifferentGrade
     {
-        public string ? GradeYear { get; set; }
+        public string? GradeYear { get; set; }
 
-        public string ? GradeLink { get; set; }
+        public string? GradeLink { get; set; }
     }
 }

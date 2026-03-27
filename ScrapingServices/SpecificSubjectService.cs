@@ -1,95 +1,28 @@
-using System.Net;
-using System.Net.Http;
 using System.Text.RegularExpressions;
-using E_Dnevnik_API.Models.ScrapeStudentProfile;
 using E_Dnevnik_API.Models.ScrapeSubjects;
 using E_Dnevnik_API.Models.SpecificSubject;
 using HtmlAgilityPack;
-using Microsoft.AspNetCore.Mvc;
 
 namespace E_Dnevnik_API.ScrapingServices
 {
-    public class SpecificSubjectScraperService : ControllerBase
+    // skida detalje jednog predmeta - ocjene po elementima vrednovanja i po mjesecima
+    public class SpecificSubjectScraperService
     {
-        private readonly IHttpClientFactory _httpClientFactory;
-
-        public SpecificSubjectScraperService(IHttpClientFactory httpClientFactory)
+        public async Task<SubjectDetails> ScrapeSubjects(string email, string password, string subjectId)
         {
-            _httpClientFactory = httpClientFactory;
-        }
+            var loginResult = await EduHrLoginService.LoginAsync(email, password);
+            if (loginResult.Client is null)
+                throw new ScraperException(loginResult.StatusCode, loginResult.Error);
 
-        public async Task<ActionResult<SubjectDetails>> ScrapeSubjects(
-            [FromBody] ScrapeRequest request,
-            string subjectId
-        )
-        {
-            var handler = new HttpClientHandler
-            {
-                UseCookies = true,
-                CookieContainer = new CookieContainer(),
-            };
+            using var httpClient = loginResult.Client;
 
-            using var httpClient = new HttpClient(handler);
-            httpClient.DefaultRequestHeaders.Clear();
-
-            if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
-            {
-                return BadRequest("Email and password must be provided.");
-            }
-
-            var loginPageResponse = await httpClient.GetAsync("https://ocjene.skole.hr/login");
-            var loginPageContent = await loginPageResponse.Content.ReadAsStringAsync();
-            var loginUrl = "https://ocjene.skole.hr/login";
-
-            var htmlDoc = new HtmlDocument();
-            htmlDoc.LoadHtml(loginPageContent);
-            var csrfToken = htmlDoc
-                .DocumentNode.SelectSingleNode("//input[@name='csrf_token']")
-                ?.Attributes["value"]
-                ?.Value;
-
-            if (string.IsNullOrEmpty(csrfToken))
-            {
-                return StatusCode(
-                    StatusCodes.Status500InternalServerError,
-                    "CSRF token not found."
-                );
-            }
-
-            var formData = new Dictionary<string, string>
-            {
-                ["username"] = request.Email,
-                ["password"] = request.Password,
-                ["csrf_token"] = csrfToken,
-            };
-
-            var loginContent = new FormUrlEncodedContent(formData);
-            httpClient.DefaultRequestHeaders.Referrer = new Uri("https://ocjene.skole.hr/login");
-            var loginResponse = await httpClient.PostAsync(loginUrl, loginContent);
-
-            if (!loginResponse.IsSuccessStatusCode)
-            {
-                return StatusCode((int)loginResponse.StatusCode, "Failed to log in.");
-            }
-
-            // Access the specific subject's grade page
-            var scrapeResponse = await httpClient.GetAsync(
-                $"https://ocjene.skole.hr/grade/{subjectId}"
-            );
+            // id predmeta dolazi iz url-a s liste predmeta, npr. 75229928950
+            var scrapeResponse = await httpClient.GetAsync($"https://ocjene.skole.hr/grade/{subjectId}");
             if (!scrapeResponse.IsSuccessStatusCode)
-            {
-                return StatusCode(
-                    (int)scrapeResponse.StatusCode,
-                    "Failed to retrieve subject information."
-                );
-            }
+                throw new ScraperException((int)scrapeResponse.StatusCode, "nije uspjelo dohvatiti stranicu predmeta.");
 
             var scrapeHtmlContent = await scrapeResponse.Content.ReadAsStringAsync();
-
-            // Extract data for both tables
-            var subjectDetails = ExtractSubjectDetails(scrapeHtmlContent);
-
-            return Ok(subjectDetails);
+            return ExtractSubjectDetails(scrapeHtmlContent);
         }
 
         private SubjectDetails ExtractSubjectDetails(string htmlContent)
@@ -101,10 +34,7 @@ namespace E_Dnevnik_API.ScrapingServices
                 "//div[@class='flex-table s  grades-table ']//div[@class='row final-grade ']/span"
             );
 
-            // Extract the "Elementi vrednovanja" table
             var evaluationElements = ExtractEvaluationElements(htmlDoc);
-
-            // Extract the "Bilješke" table
             var monthlyGrades = ExtractGradesByMonth(htmlDoc);
 
             return new SubjectDetails
@@ -115,6 +45,7 @@ namespace E_Dnevnik_API.ScrapingServices
             };
         }
 
+        // vadi ocjene po elementima vrednovanja (npr. usmeno, pismeno, projekt...)
         private List<EvaluationElement> ExtractEvaluationElements(HtmlDocument htmlDoc)
         {
             var rows = htmlDoc.DocumentNode.SelectNodes(
@@ -131,32 +62,27 @@ namespace E_Dnevnik_API.ScrapingServices
                         continue;
 
                     var grades = row.SelectNodes(".//div[@class='cell grade']");
-                    var monthlyGrades = grades
-                        ?.Select(gradeNode => gradeNode.InnerText.Trim())
-                        .ToList();
+                    var monthlyGrades = grades?.Select(gradeNode => gradeNode.InnerText.Trim()).ToList();
 
-                    evaluationElements.Add(
-                        new EvaluationElement
-                        {
-                            Name = nameNode.InnerText.Trim(),
-                            GradesByMonth = CleanText(monthlyGrades) ?? new List<string>(),
-                        }
-                    );
+                    evaluationElements.Add(new EvaluationElement
+                    {
+                        Name = nameNode.InnerText.Trim(),
+                        GradesByMonth = CleanText(monthlyGrades) ?? new List<string>(),
+                    });
                 }
             }
 
             return evaluationElements;
         }
 
+        // vadi ocjene grupirane po mjesecu - svaki redak je jedna ocjena s datumom i bilješkom
         private List<MonthlyGrades> ExtractGradesByMonth(HtmlDocument htmlDoc)
         {
             var rows = htmlDoc.DocumentNode.SelectNodes("//div[@class='row  ']");
             var monthlyGrades = new Dictionary<string, MonthlyGrades>();
 
             if (rows == null)
-            {
-                return new List<MonthlyGrades>(); // Return an empty list if no grades are found
-            }
+                return new List<MonthlyGrades>();
 
             foreach (var row in rows)
             {
@@ -171,13 +97,11 @@ namespace E_Dnevnik_API.ScrapingServices
                 var gradeText = gradeNode?.InnerText.Trim() ?? "N/A";
                 var noteText = noteNode.InnerText.Trim();
 
-                // Extract the month from the date (e.g., "10.12." -> "12")
+                // izvlačimo mjesec iz datuma, npr. "10.12." -> "12"
                 var month = dateText.Split('.')[1];
 
                 if (!monthlyGrades.ContainsKey(month))
-                {
                     monthlyGrades[month] = new MonthlyGrades(month);
-                }
 
                 var specificSubject = new SpecificSubject(dateText, noteText, gradeText);
                 monthlyGrades[month].Grades.Add(specificSubject);
@@ -194,13 +118,8 @@ namespace E_Dnevnik_API.ScrapingServices
                     if (string.IsNullOrEmpty(text))
                         return string.Empty;
 
-                    // Removes leading and trailing whitespace
                     text = text.Trim();
-
-                    // Allow Croatian letters (č, ć, š, đ, ž), basic Latin characters, digits, spaces, forward slashes, and commas
                     text = Regex.Replace(text, @"[^a-zA-Z0-9čćšđžČĆŠĐŽ\s/,]", "");
-
-                    // Replaces sequences of whitespace characters with a single space
                     return Regex.Replace(text, "\\s+", " ");
                 })
                 .ToList();

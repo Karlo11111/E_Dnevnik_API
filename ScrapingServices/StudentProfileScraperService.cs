@@ -1,86 +1,27 @@
-﻿using System.Net;
 using System.Text.RegularExpressions;
 using E_Dnevnik_API.Models.ScrapeStudentProfile;
 using E_Dnevnik_API.Models.ScrapeSubjects;
 using HtmlAgilityPack;
-using Microsoft.AspNetCore.Mvc;
 
 namespace E_Dnevnik_API.ScrapingServices
 {
-    public class StudentProfileScraperService : ControllerBase
+    // skida osobne podatke učenika - ime, razred, škola, razrednik...
+    public class StudentProfileScraperService
     {
-        private readonly IHttpClientFactory _httpClientFactory;
-
-        public StudentProfileScraperService(IHttpClientFactory httpClientFactory)
+        public async Task<StudentProfileResult> ScrapeStudentProfile(string email, string password)
         {
-            _httpClientFactory = httpClientFactory;
-        }
+            var loginResult = await EduHrLoginService.LoginAsync(email, password);
+            if (loginResult.Client is null)
+                throw new ScraperException(loginResult.StatusCode, loginResult.Error);
 
-        public async Task<ActionResult<StudentProfileResult>> ScrapeStudentProfile(
-            [FromBody] ScrapeRequest request
-        )
-        {
-            var handler = new HttpClientHandler
-            {
-                UseCookies = true,
-                CookieContainer = new CookieContainer(),
-            };
-
-            using var httpClient = new HttpClient(handler);
-            httpClient.DefaultRequestHeaders.Clear();
-            if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
-            {
-                return BadRequest("Email and password must be provided.");
-            }
-
-            var loginPageResponse = await httpClient.GetAsync("https://ocjene.skole.hr/login");
-            var loginPageContent = await loginPageResponse.Content.ReadAsStringAsync();
-            var loginUrl = "https://ocjene.skole.hr/login";
-
-            var htmlDoc = new HtmlDocument();
-            htmlDoc.LoadHtml(loginPageContent);
-            var csrfToken = htmlDoc
-                .DocumentNode.SelectSingleNode("//input[@name='csrf_token']")
-                ?.Attributes["value"]
-                ?.Value;
-
-            if (string.IsNullOrEmpty(csrfToken))
-            {
-                return StatusCode(
-                    StatusCodes.Status500InternalServerError,
-                    "CSRF token not found."
-                );
-            }
-
-            var formData = new Dictionary<string, string>
-            {
-                ["username"] = request.Email,
-                ["password"] = request.Password,
-                ["csrf_token"] = csrfToken,
-            };
-
-            var loginContent = new FormUrlEncodedContent(formData);
-            httpClient.DefaultRequestHeaders.Referrer = new Uri("https://ocjene.skole.hr/login");
-            var loginResponse = await httpClient.PostAsync(loginUrl, loginContent);
-
-            if (!loginResponse.IsSuccessStatusCode)
-            {
-                return StatusCode((int)loginResponse.StatusCode, "Failed to log in.");
-            }
+            using var httpClient = loginResult.Client;
 
             var scrapeResponse = await httpClient.GetAsync("https://ocjene.skole.hr/personal_data");
             if (!scrapeResponse.IsSuccessStatusCode)
-            {
-                return StatusCode(
-                    (int)scrapeResponse.StatusCode,
-                    "Failed to retrieve subject information."
-                );
-            }
+                throw new ScraperException((int)scrapeResponse.StatusCode, "nije uspjelo dohvatiti osobne podatke.");
 
             var scrapeHtmlContent = await scrapeResponse.Content.ReadAsStringAsync();
-            var scrapeData = await ExtractScrapeData(scrapeHtmlContent);
-
-            return Ok(scrapeData);
+            return await ExtractScrapeData(scrapeHtmlContent);
         }
 
         private async Task<StudentProfileResult> ExtractScrapeData(string htmlContent)
@@ -88,53 +29,42 @@ namespace E_Dnevnik_API.ScrapingServices
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(htmlContent);
 
-            // Extract the student's name
             var studentNameNode = htmlDoc.DocumentNode.SelectSingleNode(
                 "//div[@id='page-wrapper']//div[@class='logged-in-user']//div[@class='user-name']/span"
             );
-            var studentName =
-                studentNameNode != null ? CleanText(studentNameNode.InnerText) : "N/A";
+            var studentName = studentNameNode != null ? CleanText(studentNameNode.InnerText) : "N/A";
 
-            //Extract the student school, year, and city
             var studentGradeNode = htmlDoc.DocumentNode.SelectSingleNode(
                 "//div[@id='page-wrapper']//div[@class='school-data']//div[@class='class']//span[@class='bold']"
             );
-            var studentGrade =
-                studentGradeNode != null ? CleanText(studentGradeNode.InnerText) : "N/A";
+            var studentGrade = studentGradeNode != null ? CleanText(studentGradeNode.InnerText) : "N/A";
 
             var studentSchoolYearNode = htmlDoc.DocumentNode.SelectSingleNode(
                 "//div[@id='page-wrapper']//div[@class='school-data']//div[@class='class']//span[@class='class-schoolyear']"
             );
-            var studentSchoolYear =
-                studentSchoolYearNode != null ? CleanText(studentSchoolYearNode.InnerText) : "N/A";
+            var studentSchoolYear = studentSchoolYearNode != null ? CleanText(studentSchoolYearNode.InnerText) : "N/A";
 
             var studentSchoolNode = htmlDoc.DocumentNode.SelectSingleNode(
                 "//div[@id='page-wrapper']//div[@class='school-data']//div[@class='school']//span[@class='school-name']"
             );
-            var studentSchool =
-                studentSchoolNode != null ? CleanText(studentSchoolNode.InnerText) : "N/A";
+            var studentSchool = studentSchoolNode != null ? CleanText(studentSchoolNode.InnerText) : "N/A";
 
             var studentSchoolCityNode = htmlDoc.DocumentNode.SelectSingleNode(
                 "//div[@id='page-wrapper']//div[@class='school-data']//div[@class='school']//span[@class='school-city']"
             );
-            var studentSchoolCity =
-                studentSchoolCityNode != null ? CleanText(studentSchoolCityNode.InnerText) : "N/A";
+            var studentSchoolCity = studentSchoolCityNode != null ? CleanText(studentSchoolCityNode.InnerText) : "N/A";
 
             var classMasterNode = htmlDoc.DocumentNode.SelectSingleNode(
                 "//div[@id='page-wrapper']//div[@class='school-data']//div[@class='school']//div[@class='classmaster']/span[2]"
             );
+            var classMaster = classMasterNode != null ? CleanText(classMasterNode.InnerText) : "N/A";
 
-            var classMaster =
-                classMasterNode != null ? CleanText(classMasterNode.InnerText) : "N/A";
-
+            // program učenja je na devetom stupcu u tablici s osobnim podacima
             var studentProgramNode = htmlDoc.DocumentNode.SelectSingleNode(
                 "(//div[@class='l-two-columns'])[9]//span[@class='column']"
             );
+            var studentProgram = studentProgramNode != null ? CleanText(studentProgramNode.InnerText) : "N/A";
 
-            var studentProgram =
-                studentProgramNode != null ? CleanText(studentProgramNode.InnerText) : "N/A";
-
-            // Initialize student profile
             var studentProfile = new StudentProfileInfo
             {
                 StudentName = studentName,
@@ -145,20 +75,16 @@ namespace E_Dnevnik_API.ScrapingServices
                 ClassMaster = classMaster,
                 StudentProgram = studentProgram,
             };
+
             return new StudentProfileResult { StudentProfile = studentProfile };
         }
 
+        // čisti tekst - uklanja razmake i specijalne znakove, ostavlja samo slova, brojke i hrvatska slova
         private string CleanText(string text)
         {
-            // Removes leading and trailing whitespace
             text = text.Trim();
-
-            // Allow Croatian letters (č, ć, š, đ, ž) along with basic Latin characters and digits
             text = Regex.Replace(text, @"[^a-zA-Z0-9čćšđžČĆŠĐŽ\s/]", "");
-
-            // Replaces sequences of whitespace characters with a single space
             text = Regex.Replace(text, "\\s+", " ");
-
             return text;
         }
     }

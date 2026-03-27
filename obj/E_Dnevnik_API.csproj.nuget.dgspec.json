@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Učenik\\Documents\\KarloCiciliani\\Ednevnik\\E_Dnevnik_API\\E_Dnevnik_API.csproj": {}
+    "C:\\Users\\Karlo\\OneDrive\\Documents\\GitHub\\E_Dnevnik_API\\E_Dnevnik_API.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Učenik\\Documents\\KarloCiciliani\\Ednevnik\\E_Dnevnik_API\\E_Dnevnik_API.csproj": {
+    "C:\\Users\\Karlo\\OneDrive\\Documents\\GitHub\\E_Dnevnik_API\\E_Dnevnik_API.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Učenik\\Documents\\KarloCiciliani\\Ednevnik\\E_Dnevnik_API\\E_Dnevnik_API.csproj",
+        "projectUniqueName": "C:\\Users\\Karlo\\OneDrive\\Documents\\GitHub\\E_Dnevnik_API\\E_Dnevnik_API.csproj",
         "projectName": "E_Dnevnik_API",
-        "projectPath": "C:\\Users\\Učenik\\Documents\\KarloCiciliani\\Ednevnik\\E_Dnevnik_API\\E_Dnevnik_API.csproj",
-        "packagesPath": "C:\\Users\\Učenik\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Učenik\\Documents\\KarloCiciliani\\Ednevnik\\E_Dnevnik_API\\obj\\",
+        "projectPath": "C:\\Users\\Karlo\\OneDrive\\Documents\\GitHub\\E_Dnevnik_API\\E_Dnevnik_API.csproj",
+        "packagesPath": "C:\\Users\\Karlo\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Karlo\\OneDrive\\Documents\\GitHub\\E_Dnevnik_API\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\Učenik\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\Karlo\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net8.0"

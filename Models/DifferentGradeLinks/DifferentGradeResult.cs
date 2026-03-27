@@ -4,5 +4,4 @@
     {
         public List<DifferentGrade> DifferentGrade { get; set; } = new List<DifferentGrade>();
     }
-
 }

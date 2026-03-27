@@ -1,6 +1,6 @@
 ﻿namespace E_Dnevnik_API.Models.ScrapeSubjects
 {
-    //this class is used to store the information about the subjects
+    // podaci o jednom predmetu - ime, profesor, prosječna ocjena i id za dohvacanje detalja
     public class SubjectInfo
     {
         public SubjectInfo(string subjectName, string professor, string grade, string subjectId)
@@ -10,6 +10,7 @@
             Grade = grade;
             SubjectId = subjectId;
         }
+
         public string SubjectId { get; set; }
         public string SubjectName { get; set; }
         public string Professor { get; set; }

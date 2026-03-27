@@ -5,6 +5,7 @@
         public string? Day { get; set; }
         public List<string>? Subjects { get; set; }
     }
+
     public class ScheduleResult
     {
         public List<ScheduleTable>? Schedule { get; set; }

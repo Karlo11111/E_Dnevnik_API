@@ -1,141 +1,79 @@
-﻿using E_Dnevnik_API.Models.Absences_izostanci;
-using E_Dnevnik_API.Models.ScrapeStudentProfile;
+using E_Dnevnik_API.Models.Absences_izostanci;
 using E_Dnevnik_API.Models.ScrapeSubjects;
 using HtmlAgilityPack;
-using Microsoft.AspNetCore.Mvc;
-using System.Net;
 
 namespace E_Dnevnik_API.ScrapingServices
 {
-    public class AbsenceScraperService : ControllerBase
+    // skida izostanke s /absent stranice
+    public class AbsenceScraperService
     {
-        private readonly IHttpClientFactory _httpClientFactory;
-        public AbsenceScraperService(IHttpClientFactory httpClientFactory)
+        public async Task<AbsencesResult> ScrapeAbsences(string email, string password)
         {
-            _httpClientFactory = httpClientFactory;
-        }
+            var loginResult = await EduHrLoginService.LoginAsync(email, password);
+            if (loginResult.Client is null)
+                throw new ScraperException(loginResult.StatusCode, loginResult.Error);
 
-        public async Task<ActionResult<AbsencesResult>> ScrapeAbsences([FromBody] ScrapeRequest request)
-        {
-            var handler = new HttpClientHandler
-            {
-                UseCookies = true,
-                CookieContainer = new CookieContainer()
-            };
-
-            using var httpClient = new HttpClient(handler);
-            httpClient.DefaultRequestHeaders.Clear();
-            if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
-            {
-                return BadRequest("Email and password must be provided.");
-            }
-
-            var loginPageResponse = await httpClient.GetAsync("https://ocjene.skole.hr/login");
-            var loginPageContent = await loginPageResponse.Content.ReadAsStringAsync();
-            var loginUrl = "https://ocjene.skole.hr/login";
-
-            var htmlDoc = new HtmlDocument();
-            htmlDoc.LoadHtml(loginPageContent);
-            var csrfToken = htmlDoc.DocumentNode.SelectSingleNode("//input[@name='csrf_token']")
-                            ?.Attributes["value"]?.Value;
-
-            if (string.IsNullOrEmpty(csrfToken))
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError, "CSRF token not found.");
-            }
-
-            var formData = new Dictionary<string, string>
-            {
-                ["username"] = request.Email,
-                ["password"] = request.Password,
-                ["csrf_token"] = csrfToken
-            };
-
-            var loginContent = new FormUrlEncodedContent(formData);
-            httpClient.DefaultRequestHeaders.Referrer = new Uri("https://ocjene.skole.hr/login");
-            var loginResponse = await httpClient.PostAsync(loginUrl, loginContent);
-
-            if (!loginResponse.IsSuccessStatusCode)
-            {
-                return StatusCode((int)loginResponse.StatusCode, "Failed to log in.");
-            }
+            using var httpClient = loginResult.Client;
 
             var scrapeResponse = await httpClient.GetAsync("https://ocjene.skole.hr/absent");
             if (!scrapeResponse.IsSuccessStatusCode)
-            {
-                return StatusCode((int)scrapeResponse.StatusCode, "Failed to retrieve subject information.");
-            }
+                throw new ScraperException(
+                    (int)scrapeResponse.StatusCode,
+                    "nije uspjelo dohvatiti izostanke."
+                );
 
             var scrapeHtmlContent = await scrapeResponse.Content.ReadAsStringAsync();
-            var scrapeData = await ExtractScrapeData(scrapeHtmlContent);
-
-            // Calculate days missed per subject
-            var daysMissedPerSubject = CalculateDaysMissed(scrapeData);
-            PrintDictionary(daysMissedPerSubject);
-
-            return Ok(scrapeData);
+            return await ExtractScrapeData(scrapeHtmlContent);
         }
+
         private async Task<AbsencesResult> ExtractScrapeData(string htmlContent)
         {
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(htmlContent);
 
-
-            var absenceDateNodes = htmlDoc.DocumentNode.SelectNodes("//div[@aria-label='AbsentTable']");
+            // svaki AbsentTable div je jedan datum s popisom sati koje je učenik izostao
+            var absenceDateNodes = htmlDoc.DocumentNode.SelectNodes(
+                "//div[@aria-label='AbsentTable']"
+            );
             var absences = new List<AbsanceRecord>();
 
             if (absenceDateNodes != null)
             {
                 foreach (var dateNode in absenceDateNodes)
                 {
-                    var date = dateNode.SelectSingleNode(".//div[@class='row header first']//div[@class='cell']")?.InnerText.Trim(); // Modify XPath as needed
-                    var subjects = dateNode.SelectNodes(".//div[contains(@class, 'row')]/div[@class='box']/div[@class='cell'][1]/span[1]") // Modify XPath as needed
+                    var date = dateNode
+                        .SelectSingleNode(".//div[@class='row header first']//div[@class='cell']")
+                        ?.InnerText.Trim();
+                    var subjects = dateNode
+                        .SelectNodes(
+                            ".//div[contains(@class, 'row')]/div[@class='box']/div[@class='cell'][1]/span[1]"
+                        )
                         .Select(node => node.InnerText.Trim())
                         .ToList();
-                    absences.Add(new AbsanceRecord
-                    {
-                        Date = date,
-                        Subjects = subjects
-                    });
+                    absences.Add(new AbsanceRecord { Date = date, Subjects = subjects });
                 }
             }
-            return new AbsencesResult
-            {
-                Absences = absences.ToArray()
-            };
+
+            return new AbsencesResult { Absences = absences.ToArray() };
         }
+
+        // broji koliko puta je svaki predmet izostao - koristi se za izračun postotka
         public Dictionary<string, int> CalculateDaysMissed(AbsencesResult absences)
         {
-            // Dictionary to hold the count of days missed for each subject
             var daysMissedPerSubject = new Dictionary<string, int>();
 
-            // Iterate over each absence record
             foreach (var absence in absences.Absences)
             {
-                // Iterate over each subject in the absence record
                 foreach (var subject in absence.Subjects)
                 {
-                    // If the subject has already been counted, increment the count
                     if (daysMissedPerSubject.ContainsKey(subject))
-                    {
                         daysMissedPerSubject[subject]++;
-                    }
-                    else // Otherwise, add the subject to the dictionary with a count of 1
-                    {
+                    else
                         daysMissedPerSubject[subject] = 1;
-                    }
                 }
             }
+
             return daysMissedPerSubject;
         }
-
-
-        //printing the days missed
-        public void PrintDictionary(Dictionary<string, int> dictionary)
-        {
-            var dictionaryContents = string.Join(", ", dictionary.Select(kv => $"{kv.Key}: {kv.Value} days missed"));
-            Console.WriteLine(dictionaryContents);
-        }
     }
-
 }

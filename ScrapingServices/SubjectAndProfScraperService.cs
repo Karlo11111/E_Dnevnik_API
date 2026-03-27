@@ -1,96 +1,32 @@
-﻿using System.Net;
-using System.Net.Http;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
-using E_Dnevnik_API.Models.ScrapeStudentProfile;
 using E_Dnevnik_API.Models.ScrapeSubjects;
 using HtmlAgilityPack;
-using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
 
 namespace E_Dnevnik_API.ScrapingServices
 {
-    // This class is responsible for scraping the subjects and professors from the website
-    public class ScraperService : ControllerBase
+    // skida listu predmeta s ocjenama s /course stranice
+    public class ScraperService
     {
-        private readonly IHttpClientFactory _httpClientFactory;
-
-        public ScraperService(IHttpClientFactory httpClientFactory)
+        public async Task<SubjectScrapeResult> ScrapeSubjects(string email, string password)
         {
-            _httpClientFactory = httpClientFactory;
-        }
+            var loginResult = await EduHrLoginService.LoginAsync(email, password);
+            if (loginResult.Client is null)
+                throw new ScraperException(loginResult.StatusCode, loginResult.Error);
 
-        public async Task<ActionResult<SubjectScrapeResult>> ScrapeSubjects(
-            [FromBody] ScrapeRequest request
-        )
-        {
-            var handler = new HttpClientHandler
-            {
-                UseCookies = true,
-                CookieContainer = new CookieContainer(),
-            };
-
-            using var httpClient = new HttpClient(handler);
-            httpClient.DefaultRequestHeaders.Clear();
-
-            if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
-            {
-                return BadRequest("Email and password must be provided.");
-            }
-
-            var loginPageResponse = await httpClient.GetAsync("https://ocjene.skole.hr/login");
-            var loginPageContent = await loginPageResponse.Content.ReadAsStringAsync();
-            var loginUrl = "https://ocjene.skole.hr/login";
-
-            var htmlDoc = new HtmlDocument();
-            htmlDoc.LoadHtml(loginPageContent);
-            var csrfToken = htmlDoc
-                .DocumentNode.SelectSingleNode("//input[@name='csrf_token']")
-                ?.Attributes["value"]
-                ?.Value;
-
-            if (string.IsNullOrEmpty(csrfToken))
-            {
-                return StatusCode(
-                    StatusCodes.Status500InternalServerError,
-                    "CSRF token not found."
-                );
-            }
-
-            var formData = new Dictionary<string, string>
-            {
-                ["username"] = request.Email,
-                ["password"] = request.Password,
-                ["csrf_token"] = csrfToken,
-            };
-
-            var loginContent = new FormUrlEncodedContent(formData);
-            httpClient.DefaultRequestHeaders.Referrer = new Uri("https://ocjene.skole.hr/login");
-            var loginResponse = await httpClient.PostAsync(loginUrl, loginContent);
-
-            if (!loginResponse.IsSuccessStatusCode)
-            {
-                return StatusCode((int)loginResponse.StatusCode, "Failed to log in.");
-            }
+            using var httpClient = loginResult.Client;
 
             var scrapeResponse = await httpClient.GetAsync("https://ocjene.skole.hr/course");
             if (!scrapeResponse.IsSuccessStatusCode)
-            {
-                return StatusCode(
+                throw new ScraperException(
                     (int)scrapeResponse.StatusCode,
-                    "Failed to retrieve subject information."
+                    "nije uspjelo dohvatiti stranicu s predmetima."
                 );
-            }
 
             var scrapeHtmlContent = await scrapeResponse.Content.ReadAsStringAsync();
-            var scrapeData = await ExtractScrapeData(scrapeHtmlContent);
-
-            return Ok(scrapeData);
+            return await ExtractScrapeData(scrapeHtmlContent);
         }
 
-        //extracting subject info from the html content
+        // vadi predmete iz html-a - svaki <li> u listi je jedan predmet
         private async Task<SubjectScrapeResult> ExtractScrapeData(string htmlContent)
         {
             var htmlDoc = new HtmlDocument();
@@ -99,7 +35,6 @@ namespace E_Dnevnik_API.ScrapingServices
             var courseNodes = htmlDoc.DocumentNode.SelectNodes("//ul[@class='list']/li/a");
             var subjectList = new List<SubjectInfo>();
 
-            //getting the each nodes of the course class
             if (courseNodes != null)
             {
                 foreach (var aNode in courseNodes)
@@ -114,7 +49,7 @@ namespace E_Dnevnik_API.ScrapingServices
                         ".//div[@class='list-average-grade ']/span"
                     );
 
-                    //subject id
+                    // id predmeta je broj iz href atributa, npr. /grade/75229928950 -> 75229928950
                     string hrefValue = ExtractNumbers(
                         aNode.GetAttributeValue("href", string.Empty)
                     );
@@ -131,20 +66,15 @@ namespace E_Dnevnik_API.ScrapingServices
                 }
             }
 
-            return new SubjectScrapeResult
-            {
-                Subjects = subjectList, // The extracted list of subjects
-            };
+            return new SubjectScrapeResult { Subjects = subjectList };
         }
 
-        //function that returns only numbers from the string (for subject id)
+        // izvlači samo brojeve iz stringa - koristi se za id predmeta iz linka
         public static string ExtractNumbers(string input)
         {
-            // This match any digits in the input string
             Regex regex = new Regex(@"\d+");
             Match match = regex.Match(input);
 
-            // Concatenate all matches into one string
             string number = "";
             while (match.Success)
             {
@@ -155,15 +85,10 @@ namespace E_Dnevnik_API.ScrapingServices
             return number;
         }
 
-        // Cleans the text by removing leading and trailing whitespace and replacing sequences of whitespace characters with a single space
         private string CleanText(string text)
         {
-            // Removes leading and trailing whitespace
             text = text.Trim();
-
-            // Replaces sequences of whitespace characters with a single space
             text = Regex.Replace(text, @"\s+", " ");
-
             return text;
         }
     }
