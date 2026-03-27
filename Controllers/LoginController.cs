@@ -33,12 +33,18 @@ namespace E_Dnevnik_API.Controllers
 
             var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
-            // provjera je li email privremeno blokiran zbog previše neuspjelih pokušaja
+            // provjera jeli email privremeno blokiran zbog previše neuspjelih pokušaja
             if (_bruteForce.IsBlocked(request.Email))
             {
-                _logger.LogWarning("login blokiran (brute force) | email={Email} ip={Ip}", request.Email, ip);
-                return StatusCode(StatusCodes.Status429TooManyRequests,
-                    "previše neuspjelih pokušaja prijave. pokušaj ponovo za 15 minuta.");
+                _logger.LogWarning(
+                    "login blokiran (brute force) | email={Email} ip={Ip}",
+                    request.Email,
+                    ip
+                );
+                return StatusCode(
+                    StatusCodes.Status429TooManyRequests,
+                    "previše neuspjelih pokušaja prijave. pokušaj ponovo za 15 minuta."
+                );
             }
 
             var result = await EduHrLoginService.LoginAsync(request.Email, request.Password);
@@ -46,8 +52,12 @@ namespace E_Dnevnik_API.Controllers
             if (result.Client is null)
             {
                 _bruteForce.RecordFailure(request.Email);
-                _logger.LogWarning("login neuspješan | email={Email} ip={Ip} status={Status}",
-                    request.Email, ip, result.StatusCode);
+                _logger.LogWarning(
+                    "login neuspješan | email={Email} ip={Ip} status={Status}",
+                    request.Email,
+                    ip,
+                    result.StatusCode
+                );
                 return StatusCode(result.StatusCode, result.Error);
             }
 

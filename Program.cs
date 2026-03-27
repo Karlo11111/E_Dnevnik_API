@@ -31,16 +31,18 @@ builder.Services.AddSingleton<LoginBruteForceProtection>();
 // štiti i naš server i e-dnevnik od preopterećenja
 builder.Services.AddRateLimiter(options =>
 {
-    options.AddPolicy("perIp", context =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                Window = TimeSpan.FromMinutes(1),
-                PermitLimit = 20,
-                QueueLimit = 0,
-            }
-        )
+    options.AddPolicy(
+        "perIp",
+        context =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    Window = TimeSpan.FromMinutes(1),
+                    PermitLimit = 20,
+                    QueueLimit = 0,
+                }
+            )
     );
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.OnRejected = async (context, cancellationToken) =>
@@ -71,13 +73,13 @@ if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddCors(options =>
         options.AddDefaultPolicy(policy =>
-            policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+            policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()
+        )
+    );
 }
 else
 {
-    builder.Services.AddCors(options =>
-        options.AddDefaultPolicy(policy =>
-            policy.WithOrigins())); // nema dopuštenih origina = browseri dobivaju CORS grešku
+    builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy.WithOrigins())); // nema dopuštenih origina = browseri dobivaju CORS grešku
 }
 builder.Services.AddHostedService<NewDataRefreshService>();
 
@@ -88,10 +90,12 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 // heroku terminira TLS na load balanceru - bez ovoga UseHttpsRedirection bi redirectao na krivi port
-app.UseForwardedHeaders(new ForwardedHeadersOptions
-{
-    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-});
+app.UseForwardedHeaders(
+    new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+    }
+);
 
 if (app.Environment.IsDevelopment())
 {
@@ -114,16 +118,18 @@ else
 }
 
 // security headers - štite od uobičajenih web napada
-app.Use(async (context, next) =>
-{
-    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-    context.Response.Headers["X-Frame-Options"] = "DENY";
-    context.Response.Headers["Referrer-Policy"] = "no-referrer";
-    context.Response.Headers["X-Permitted-Cross-Domain-Policies"] = "none";
-    // csp: api ne servira html pa možemo zabraniti sve osim same-origin json odgovora
-    context.Response.Headers["Content-Security-Policy"] = "default-src 'none'";
-    await next();
-});
+app.Use(
+    async (context, next) =>
+    {
+        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        context.Response.Headers["X-Frame-Options"] = "DENY";
+        context.Response.Headers["Referrer-Policy"] = "no-referrer";
+        context.Response.Headers["X-Permitted-Cross-Domain-Policies"] = "none";
+        // csp: api ne servira html pa možemo zabraniti sve osim same-origin json odgovora
+        context.Response.Headers["Content-Security-Policy"] = "default-src 'none'";
+        await next();
+    }
+);
 
 app.UseCors();
 

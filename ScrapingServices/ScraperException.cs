@@ -5,7 +5,8 @@ namespace E_Dnevnik_API.ScrapingServices
     {
         public int StatusCode { get; }
 
-        public ScraperException(int statusCode, string message) : base(message)
+        public ScraperException(int statusCode, string message)
+            : base(message)
         {
             StatusCode = statusCode;
         }

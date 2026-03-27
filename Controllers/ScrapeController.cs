@@ -5,9 +5,9 @@ using E_Dnevnik_API.Models.NewGrades;
 using E_Dnevnik_API.Models.NewTests;
 using E_Dnevnik_API.Models.ScheduleTable;
 using E_Dnevnik_API.Models.ScrapeStudentProfile;
+using E_Dnevnik_API.Models.ScrapeSubjects;
 using E_Dnevnik_API.Models.ScrapeTests;
 using E_Dnevnik_API.Models.SpecificSubject;
-using E_Dnevnik_API.Models.ScrapeSubjects;
 using E_Dnevnik_API.ScrapingServices;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
@@ -68,7 +68,9 @@ namespace E_Dnevnik_API.Controllers
 
             var cookies = _sessionStore.GetCookies(token);
             if (cookies is null)
-                return Unauthorized("Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava.");
+                return Unauthorized(
+                    "Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava."
+                );
 
             using var client = CreateClient(cookies);
             try
@@ -98,11 +100,13 @@ namespace E_Dnevnik_API.Controllers
         }
 
         [HttpGet("ScrapeSubjectsAndProfessors")]
-        public Task<ActionResult<SubjectScrapeResult>> ScrapeSubjects()
-            => Execute(client => _subjectScraperService.ScrapeSubjects(client));
+        public Task<ActionResult<SubjectScrapeResult>> ScrapeSubjects() =>
+            Execute(client => _subjectScraperService.ScrapeSubjects(client));
 
         [HttpGet("ScrapeSpecificSubjectGrades")]
-        public async Task<ActionResult<SubjectDetails>> ScrapeSpecificSubjectGrades([FromQuery] string subjectId)
+        public async Task<ActionResult<SubjectDetails>> ScrapeSpecificSubjectGrades(
+            [FromQuery] string subjectId
+        )
         {
             if (string.IsNullOrEmpty(subjectId))
                 return BadRequest("Subject ID mora biti unesen.");
@@ -110,28 +114,30 @@ namespace E_Dnevnik_API.Controllers
             if (!subjectId.All(char.IsDigit))
                 return BadRequest("Subject ID mora biti broj.");
 
-            return await Execute(client => _specificSubjectScraperService.ScrapeSubjects(client, subjectId));
+            return await Execute(client =>
+                _specificSubjectScraperService.ScrapeSubjects(client, subjectId)
+            );
         }
 
         [HttpGet("ScrapeStudentProfile")]
-        public Task<ActionResult<StudentProfileResult>> ScrapeStudentProfile()
-            => Execute(client => _studentProfileScraperService.ScrapeStudentProfile(client));
+        public Task<ActionResult<StudentProfileResult>> ScrapeStudentProfile() =>
+            Execute(client => _studentProfileScraperService.ScrapeStudentProfile(client));
 
         [HttpGet("ScrapeTests")]
-        public Task<ActionResult<Dictionary<string, List<TestInfo>>>> ScrapeTests()
-            => Execute(client => _testScraperService.ScrapeTests(client));
+        public Task<ActionResult<Dictionary<string, List<TestInfo>>>> ScrapeTests() =>
+            Execute(client => _testScraperService.ScrapeTests(client));
 
         [HttpGet("ScrapeDifferentGrades")]
-        public Task<ActionResult<List<GradeSubjectDetails>>> ScrapeDifferentGradeLink()
-            => Execute(client => _differentGradeLinkScraperService.ScrapeDifferentGradeLink(client));
+        public Task<ActionResult<List<GradeSubjectDetails>>> ScrapeDifferentGradeLink() =>
+            Execute(client => _differentGradeLinkScraperService.ScrapeDifferentGradeLink(client));
 
         [HttpGet("ScrapeAbsences")]
-        public Task<ActionResult<AbsencesResult>> ScrapeAbsences()
-            => Execute(client => _absenceScraperService.ScrapeAbsences(client));
+        public Task<ActionResult<AbsencesResult>> ScrapeAbsences() =>
+            Execute(client => _absenceScraperService.ScrapeAbsences(client));
 
         [HttpGet("ScrapeScheduleTable")]
-        public Task<ActionResult<ScheduleResult>> ScrapeScheduleTable()
-            => Execute(client => _scheduleTableScraperService.ScrapeScheduleTable(client));
+        public Task<ActionResult<ScheduleResult>> ScrapeScheduleTable() =>
+            Execute(client => _scheduleTableScraperService.ScrapeScheduleTable(client));
 
         [HttpGet("ScrapeNewGrades")]
         public async Task<ActionResult<NewGradesResult>> ScrapeNewGrades()
@@ -142,9 +148,14 @@ namespace E_Dnevnik_API.Controllers
 
             var cookies = _sessionStore.GetCookies(token);
             if (cookies is null)
-                return Unauthorized("Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava.");
+                return Unauthorized(
+                    "Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava."
+                );
 
-            if (_cache.TryGetValue<NewGradesResult>($"newgrades:{token}", out var cached) && cached is not null)
+            if (
+                _cache.TryGetValue<NewGradesResult>($"newgrades:{token}", out var cached)
+                && cached is not null
+            )
                 return Ok(cached);
 
             using var client = CreateClient(cookies);
@@ -169,9 +180,14 @@ namespace E_Dnevnik_API.Controllers
 
             var cookies = _sessionStore.GetCookies(token);
             if (cookies is null)
-                return Unauthorized("Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava.");
+                return Unauthorized(
+                    "Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava."
+                );
 
-            if (_cache.TryGetValue<NewTestsResult>($"newtests:{token}", out var cached) && cached is not null)
+            if (
+                _cache.TryGetValue<NewTestsResult>($"newtests:{token}", out var cached)
+                && cached is not null
+            )
                 return Ok(cached);
 
             using var client = CreateClient(cookies);
@@ -189,7 +205,9 @@ namespace E_Dnevnik_API.Controllers
 
         // ovaj endpoint kombinira raspored i izostanke pa ih pozivamo s istim klijentom
         [HttpGet("CalculateMissedClassPercentages")]
-        public async Task<ActionResult<Dictionary<string, string>>> CalculateMissedClassPercentages()
+        public async Task<
+            ActionResult<Dictionary<string, string>>
+        > CalculateMissedClassPercentages()
         {
             var token = GetBearerToken();
             if (token is null)
@@ -197,13 +215,17 @@ namespace E_Dnevnik_API.Controllers
 
             var cookies = _sessionStore.GetCookies(token);
             if (cookies is null)
-                return Unauthorized("Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava.");
+                return Unauthorized(
+                    "Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava."
+                );
 
             using var client = CreateClient(cookies);
             try
             {
                 var scheduleData = await _scheduleTableScraperService.ScrapeScheduleTable(client);
-                var yearlyHours = _scheduleTableScraperService.CalculateYearlySubjectHours(scheduleData);
+                var yearlyHours = _scheduleTableScraperService.CalculateYearlySubjectHours(
+                    scheduleData
+                );
 
                 var absencesData = await _absenceScraperService.ScrapeAbsences(client);
                 var daysMissed = _absenceScraperService.CalculateDaysMissed(absencesData);
@@ -227,7 +249,11 @@ namespace E_Dnevnik_API.Controllers
             foreach (var subject in yearlyHours)
             {
                 var totalHours = subject.Value;
-                if (totalHours == 0) { percentages[subject.Key] = "0.00%"; continue; }
+                if (totalHours == 0)
+                {
+                    percentages[subject.Key] = "0.00%";
+                    continue;
+                }
                 var missedDays = daysMissed.ContainsKey(subject.Key) ? daysMissed[subject.Key] : 0;
                 var percentageMissed = (double)missedDays / totalHours * 100;
                 percentages[subject.Key] = $"{percentageMissed:N2}%";
