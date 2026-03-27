@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using E_Dnevnik_API.Models.ScrapeSubjects;
 using E_Dnevnik_API.Models.ScrapeTests;
 using HtmlAgilityPack;
 
@@ -8,31 +7,30 @@ namespace E_Dnevnik_API.ScrapingServices
     // skida raspored pisanih zadaća s /exam stranice, grupirane po mjesecima
     public class TestScraperService
     {
-        public async Task<Dictionary<string, List<TestInfo>>> ScrapeTests(string email, string password)
+        public async Task<Dictionary<string, List<TestInfo>>> ScrapeTests(HttpClient client)
         {
-            var loginResult = await EduHrLoginService.LoginAsync(email, password);
-            if (loginResult.Client is null)
-                throw new ScraperException(loginResult.StatusCode, loginResult.Error);
-
-            using var httpClient = loginResult.Client;
-
-            var scrapeResponse = await httpClient.GetAsync("https://ocjene.skole.hr/exam");
+            var scrapeResponse = await client.GetAsync("https://ocjene.skole.hr/exam");
             if (!scrapeResponse.IsSuccessStatusCode)
-                throw new ScraperException((int)scrapeResponse.StatusCode, "nije uspjelo dohvatiti ispite.");
+                throw new ScraperException(
+                    (int)scrapeResponse.StatusCode,
+                    "nije uspjelo dohvatiti ispite."
+                );
 
             var scrapeHtmlContent = await scrapeResponse.Content.ReadAsStringAsync();
-            return await ExtractScrapeData(scrapeHtmlContent);
+            return ExtractScrapeData(scrapeHtmlContent);
         }
 
         // svaki exam-table div je jedan mjesec, unutra su redovi s ispitima
-        private async Task<Dictionary<string, List<TestInfo>>> ExtractScrapeData(string htmlContent)
+        private Dictionary<string, List<TestInfo>> ExtractScrapeData(string htmlContent)
         {
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(htmlContent);
 
             var monthlyTests = new Dictionary<string, List<TestInfo>>();
 
-            var examTableNodes = htmlDoc.DocumentNode.SelectNodes("//div[contains(@class, 'exam-table')]");
+            var examTableNodes = htmlDoc.DocumentNode.SelectNodes(
+                "//div[contains(@class, 'exam-table')]"
+            );
 
             foreach (var tableNode in examTableNodes)
             {
@@ -52,8 +50,12 @@ namespace E_Dnevnik_API.ScrapingServices
                     foreach (var rowNode in testNodes)
                     {
                         var dateCell = rowNode.SelectSingleNode(".//div[@class='cell'][1]");
-                        var nameCell = rowNode.SelectSingleNode(".//div[@class='box']/div[@class='cell'][1]");
-                        var descriptionCell = rowNode.SelectSingleNode(".//div[@class='box']/div[@class='cell'][2]");
+                        var nameCell = rowNode.SelectSingleNode(
+                            ".//div[@class='box']/div[@class='cell'][1]"
+                        );
+                        var descriptionCell = rowNode.SelectSingleNode(
+                            ".//div[@class='box']/div[@class='cell'][2]"
+                        );
 
                         if (dateCell != null && descriptionCell != null && nameCell != null)
                         {

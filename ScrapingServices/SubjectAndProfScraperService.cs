@@ -7,15 +7,9 @@ namespace E_Dnevnik_API.ScrapingServices
     // skida listu predmeta s ocjenama s /course stranice
     public class ScraperService
     {
-        public async Task<SubjectScrapeResult> ScrapeSubjects(string email, string password)
+        public async Task<SubjectScrapeResult> ScrapeSubjects(HttpClient client)
         {
-            var loginResult = await EduHrLoginService.LoginAsync(email, password);
-            if (loginResult.Client is null)
-                throw new ScraperException(loginResult.StatusCode, loginResult.Error);
-
-            using var httpClient = loginResult.Client;
-
-            var scrapeResponse = await httpClient.GetAsync("https://ocjene.skole.hr/course");
+            var scrapeResponse = await client.GetAsync("https://ocjene.skole.hr/course");
             if (!scrapeResponse.IsSuccessStatusCode)
                 throw new ScraperException(
                     (int)scrapeResponse.StatusCode,
@@ -23,11 +17,11 @@ namespace E_Dnevnik_API.ScrapingServices
                 );
 
             var scrapeHtmlContent = await scrapeResponse.Content.ReadAsStringAsync();
-            return await ExtractScrapeData(scrapeHtmlContent);
+            return ExtractScrapeData(scrapeHtmlContent);
         }
 
         // vadi predmete iz html-a - svaki <li> u listi je jedan predmet
-        private async Task<SubjectScrapeResult> ExtractScrapeData(string htmlContent)
+        private SubjectScrapeResult ExtractScrapeData(string htmlContent)
         {
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(htmlContent);

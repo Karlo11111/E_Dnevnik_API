@@ -119,11 +119,9 @@ C:\Users\Karlo\OneDrive\Documents\GitHub\E_Dnevnik_API\bin\Debug\net8.0\E_Dnevni
 C:\Users\Karlo\OneDrive\Documents\GitHub\E_Dnevnik_API\bin\Debug\net8.0\HtmlAgilityPack.dll
 C:\Users\Karlo\OneDrive\Documents\GitHub\E_Dnevnik_API\bin\Debug\net8.0\Microsoft.OpenApi.dll
 C:\Users\Karlo\OneDrive\Documents\GitHub\E_Dnevnik_API\bin\Debug\net8.0\Newtonsoft.Json.dll
-C:\Users\Karlo\OneDrive\Documents\GitHub\E_Dnevnik_API\bin\Debug\net8.0\WebDriver.dll
 C:\Users\Karlo\OneDrive\Documents\GitHub\E_Dnevnik_API\bin\Debug\net8.0\Swashbuckle.AspNetCore.Swagger.dll
 C:\Users\Karlo\OneDrive\Documents\GitHub\E_Dnevnik_API\bin\Debug\net8.0\Swashbuckle.AspNetCore.SwaggerGen.dll
 C:\Users\Karlo\OneDrive\Documents\GitHub\E_Dnevnik_API\bin\Debug\net8.0\Swashbuckle.AspNetCore.SwaggerUI.dll
-C:\Users\Karlo\OneDrive\Documents\GitHub\E_Dnevnik_API\bin\Debug\net8.0\System.Security.Permissions.dll
 C:\Users\Karlo\OneDrive\Documents\GitHub\E_Dnevnik_API\obj\Debug\net8.0\E_Dnevnik_API.csproj.AssemblyReference.cache
 C:\Users\Karlo\OneDrive\Documents\GitHub\E_Dnevnik_API\obj\Debug\net8.0\E_Dnevnik_API.GeneratedMSBuildEditorConfig.editorconfig
 C:\Users\Karlo\OneDrive\Documents\GitHub\E_Dnevnik_API\obj\Debug\net8.0\E_Dnevnik_API.AssemblyInfoInputs.cache

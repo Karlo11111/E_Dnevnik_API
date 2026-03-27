@@ -1,5 +1,4 @@
 using E_Dnevnik_API.Models.Absences_izostanci;
-using E_Dnevnik_API.Models.ScrapeSubjects;
 using HtmlAgilityPack;
 
 namespace E_Dnevnik_API.ScrapingServices
@@ -7,15 +6,9 @@ namespace E_Dnevnik_API.ScrapingServices
     // skida izostanke s /absent stranice
     public class AbsenceScraperService
     {
-        public async Task<AbsencesResult> ScrapeAbsences(string email, string password)
+        public async Task<AbsencesResult> ScrapeAbsences(HttpClient client)
         {
-            var loginResult = await EduHrLoginService.LoginAsync(email, password);
-            if (loginResult.Client is null)
-                throw new ScraperException(loginResult.StatusCode, loginResult.Error);
-
-            using var httpClient = loginResult.Client;
-
-            var scrapeResponse = await httpClient.GetAsync("https://ocjene.skole.hr/absent");
+            var scrapeResponse = await client.GetAsync("https://ocjene.skole.hr/absent");
             if (!scrapeResponse.IsSuccessStatusCode)
                 throw new ScraperException(
                     (int)scrapeResponse.StatusCode,
@@ -23,10 +16,10 @@ namespace E_Dnevnik_API.ScrapingServices
                 );
 
             var scrapeHtmlContent = await scrapeResponse.Content.ReadAsStringAsync();
-            return await ExtractScrapeData(scrapeHtmlContent);
+            return ExtractScrapeData(scrapeHtmlContent);
         }
 
-        private async Task<AbsencesResult> ExtractScrapeData(string htmlContent)
+        private AbsencesResult ExtractScrapeData(string htmlContent)
         {
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(htmlContent);
@@ -35,7 +28,7 @@ namespace E_Dnevnik_API.ScrapingServices
             var absenceDateNodes = htmlDoc.DocumentNode.SelectNodes(
                 "//div[@aria-label='AbsentTable']"
             );
-            var absences = new List<AbsanceRecord>();
+            var absences = new List<AbsenceRecord>();
 
             if (absenceDateNodes != null)
             {
@@ -50,7 +43,7 @@ namespace E_Dnevnik_API.ScrapingServices
                         )
                         .Select(node => node.InnerText.Trim())
                         .ToList();
-                    absences.Add(new AbsanceRecord { Date = date, Subjects = subjects });
+                    absences.Add(new AbsenceRecord { Date = date, Subjects = subjects });
                 }
             }
 

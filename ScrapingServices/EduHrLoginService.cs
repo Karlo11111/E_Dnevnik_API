@@ -4,17 +4,22 @@ using Microsoft.AspNetCore.Http;
 
 namespace E_Dnevnik_API.ScrapingServices
 {
-    public record LoginResult(HttpClient? Client, int StatusCode, string Error);
+    public record LoginResult(
+        HttpClient? Client,
+        CookieContainer? Cookies,
+        int StatusCode,
+        string Error
+    );
 
     public static class EduHrLoginService
     {
         private const string LoginUrl = "https://ocjene.skole.hr/login";
 
-        /// <summary>
-        /// Authenticates with e-Dnevnik and returns an HttpClient with a valid session.
-        /// The caller is responsible for disposing the client.
-        /// Returns a null Client on failure, with StatusCode and Error set.
-        /// </summary>
+        // 120 sekundi zbog težih endpointa koji prolaze kroz puno stranica zaredom (npr. different grades)
+        private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(120);
+
+        // logira korisnika na e-dnevnik i vraća http klijent s aktivnom sesijom
+        // pozivatelj je odgovoran za dispose klijenta (using var)
         public static async Task<LoginResult> LoginAsync(string email, string password)
         {
             var handler = new HttpClientHandler
@@ -23,7 +28,7 @@ namespace E_Dnevnik_API.ScrapingServices
                 CookieContainer = new CookieContainer(),
             };
 
-            var client = new HttpClient(handler);
+            var client = new HttpClient(handler) { Timeout = RequestTimeout };
             client.DefaultRequestHeaders.Clear();
 
             var loginPageResponse = await client.GetAsync(LoginUrl);
@@ -31,14 +36,20 @@ namespace E_Dnevnik_API.ScrapingServices
 
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(loginPageContent);
-            var csrfToken = htmlDoc.DocumentNode
-                .SelectSingleNode("//input[@name='csrf_token']")
-                ?.Attributes["value"]?.Value;
+            var csrfToken = htmlDoc
+                .DocumentNode.SelectSingleNode("//input[@name='csrf_token']")
+                ?.Attributes["value"]
+                ?.Value;
 
             if (string.IsNullOrEmpty(csrfToken))
             {
                 client.Dispose();
-                return new LoginResult(null, StatusCodes.Status500InternalServerError, "CSRF token not found.");
+                return new LoginResult(
+                    null,
+                    null,
+                    StatusCodes.Status500InternalServerError,
+                    "csrf token nije pronađen."
+                );
             }
 
             var formData = new Dictionary<string, string>
@@ -55,10 +66,56 @@ namespace E_Dnevnik_API.ScrapingServices
             if (!loginResponse.IsSuccessStatusCode)
             {
                 client.Dispose();
-                return new LoginResult(null, (int)loginResponse.StatusCode, "Failed to log in.");
+                return new LoginResult(
+                    null,
+                    null,
+                    (int)loginResponse.StatusCode,
+                    "prijava nije uspjela, provjeri email i lozinku."
+                );
             }
 
-            return new LoginResult(client, StatusCodes.Status200OK, string.Empty);
+            // aktiviramo najnoviji razred kako bi /course i ostali endpointi vraćali ispravne podatke
+            // kad školska godina završi, e-dnevnik nema "aktivni" razred pa /course vraća prazno
+            await ActivateMostRecentClassAsync(client);
+
+            // i klijent i cookie container vraćamo - pozivatelj odlučuje što zadržati
+            return new LoginResult(
+                client,
+                handler.CookieContainer,
+                StatusCodes.Status200OK,
+                string.Empty
+            );
+        }
+
+        // navigira na /class, uzima prvi link i GETa ga da aktivira razred server-side
+        private static async Task ActivateMostRecentClassAsync(HttpClient client)
+        {
+            try
+            {
+                var classPageResponse = await client.GetAsync("https://ocjene.skole.hr/class");
+                if (!classPageResponse.IsSuccessStatusCode)
+                    return;
+
+                var classPageContent = await classPageResponse.Content.ReadAsStringAsync();
+                var htmlDoc = new HtmlDocument();
+                htmlDoc.LoadHtml(classPageContent);
+
+                var classLink = htmlDoc
+                    .DocumentNode.SelectSingleNode(
+                        "//div[contains(@class,'class-menu-vertical')]//div[@class='class-info']/a"
+                    )
+                    ?.Attributes["href"]
+                    ?.Value;
+
+                if (string.IsNullOrEmpty(classLink))
+                    return;
+
+                await client.GetAsync($"https://ocjene.skole.hr{classLink}");
+            }
+            catch (Exception)
+            {
+                // ne prekidamo login ako aktivacija razreda ne uspije
+            }
         }
     }
 }

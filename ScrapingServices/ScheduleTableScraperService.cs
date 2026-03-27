@@ -10,23 +10,20 @@ namespace E_Dnevnik_API.ScrapingServices
     // skida raspored sati s /schedule stranice i računa godišnji fond sati po predmetu
     public class ScheduleTableScraperService
     {
-        public async Task<ScheduleResult> ScrapeScheduleTable(string email, string password)
+        public async Task<ScheduleResult> ScrapeScheduleTable(HttpClient client)
         {
-            var loginResult = await EduHrLoginService.LoginAsync(email, password);
-            if (loginResult.Client is null)
-                throw new ScraperException(loginResult.StatusCode, loginResult.Error);
-
-            using var httpClient = loginResult.Client;
-
-            var scrapeResponse = await httpClient.GetAsync("https://ocjene.skole.hr/schedule");
+            var scrapeResponse = await client.GetAsync("https://ocjene.skole.hr/schedule");
             if (!scrapeResponse.IsSuccessStatusCode)
-                throw new ScraperException((int)scrapeResponse.StatusCode, "nije uspjelo dohvatiti raspored.");
+                throw new ScraperException(
+                    (int)scrapeResponse.StatusCode,
+                    "nije uspjelo dohvatiti raspored."
+                );
 
             var scrapeHtmlContent = await scrapeResponse.Content.ReadAsStringAsync();
-            return await ExtractScrapeData(scrapeHtmlContent);
+            return ExtractScrapeData(scrapeHtmlContent);
         }
 
-        private async Task<ScheduleResult> ExtractScrapeData(string htmlContent)
+        private ScheduleResult ExtractScrapeData(string htmlContent)
         {
             var htmlDoc = new HtmlDocument();
             htmlDoc.LoadHtml(htmlContent);
@@ -40,7 +37,8 @@ namespace E_Dnevnik_API.ScrapingServices
                 var daySchedule = new ScheduleTable() { Day = day, Subjects = new List<string>() };
 
                 // raspored je podijeljen po danima, svaki dan ima svoj flex-table-schedule div s data-action-id
-                var scheduleTablesXPath = $"//div[contains(@class, 'flex-table-schedule') and @data-action-id=\"{day}\"]";
+                var scheduleTablesXPath =
+                    $"//div[contains(@class, 'flex-table-schedule') and @data-action-id=\"{day}\"]";
                 var scheduleTables = htmlDoc.DocumentNode.SelectNodes(scheduleTablesXPath);
 
                 if (scheduleTables != null)
@@ -112,7 +110,10 @@ namespace E_Dnevnik_API.ScrapingServices
                     string cleanSubject = CleanText(subject);
 
                     // neki sati imaju više predmeta odjednom, npr. "Kemija s vježbama, Fizika"
-                    var subjectsSplit = cleanSubject.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    var subjectsSplit = cleanSubject.Split(
+                        new[] { ',' },
+                        StringSplitOptions.RemoveEmptyEntries
+                    );
                     foreach (var singleSubject in subjectsSplit)
                     {
                         var finalSubject = singleSubject.Trim();

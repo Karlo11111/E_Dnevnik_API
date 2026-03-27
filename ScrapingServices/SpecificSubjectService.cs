@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using E_Dnevnik_API.Models.ScrapeSubjects;
 using E_Dnevnik_API.Models.SpecificSubject;
 using HtmlAgilityPack;
 
@@ -8,18 +7,17 @@ namespace E_Dnevnik_API.ScrapingServices
     // skida detalje jednog predmeta - ocjene po elementima vrednovanja i po mjesecima
     public class SpecificSubjectScraperService
     {
-        public async Task<SubjectDetails> ScrapeSubjects(string email, string password, string subjectId)
+        public async Task<SubjectDetails> ScrapeSubjects(HttpClient client, string subjectId)
         {
-            var loginResult = await EduHrLoginService.LoginAsync(email, password);
-            if (loginResult.Client is null)
-                throw new ScraperException(loginResult.StatusCode, loginResult.Error);
-
-            using var httpClient = loginResult.Client;
-
             // id predmeta dolazi iz url-a s liste predmeta, npr. 75229928950
-            var scrapeResponse = await httpClient.GetAsync($"https://ocjene.skole.hr/grade/{subjectId}");
+            var scrapeResponse = await client.GetAsync(
+                $"https://ocjene.skole.hr/grade/{subjectId}"
+            );
             if (!scrapeResponse.IsSuccessStatusCode)
-                throw new ScraperException((int)scrapeResponse.StatusCode, "nije uspjelo dohvatiti stranicu predmeta.");
+                throw new ScraperException(
+                    (int)scrapeResponse.StatusCode,
+                    "nije uspjelo dohvatiti stranicu predmeta."
+                );
 
             var scrapeHtmlContent = await scrapeResponse.Content.ReadAsStringAsync();
             return ExtractSubjectDetails(scrapeHtmlContent);
@@ -62,13 +60,17 @@ namespace E_Dnevnik_API.ScrapingServices
                         continue;
 
                     var grades = row.SelectNodes(".//div[@class='cell grade']");
-                    var monthlyGrades = grades?.Select(gradeNode => gradeNode.InnerText.Trim()).ToList();
+                    var monthlyGrades = grades
+                        ?.Select(gradeNode => gradeNode.InnerText.Trim())
+                        .ToList();
 
-                    evaluationElements.Add(new EvaluationElement
-                    {
-                        Name = nameNode.InnerText.Trim(),
-                        GradesByMonth = CleanText(monthlyGrades) ?? new List<string>(),
-                    });
+                    evaluationElements.Add(
+                        new EvaluationElement
+                        {
+                            Name = nameNode.InnerText.Trim(),
+                            GradesByMonth = CleanText(monthlyGrades) ?? new List<string>(),
+                        }
+                    );
                 }
             }
 
@@ -98,7 +100,10 @@ namespace E_Dnevnik_API.ScrapingServices
                 var noteText = noteNode.InnerText.Trim();
 
                 // izvlačimo mjesec iz datuma, npr. "10.12." -> "12"
-                var month = dateText.Split('.')[1];
+                var parts = dateText.Split('.');
+                if (parts.Length < 2)
+                    continue;
+                var month = parts[1];
 
                 if (!monthlyGrades.ContainsKey(month))
                     monthlyGrades[month] = new MonthlyGrades(month);
