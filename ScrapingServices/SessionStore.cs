@@ -8,21 +8,21 @@ namespace E_Dnevnik_API.ScrapingServices
     // ne čuvamo lozinke nigdje - samo kolačiće koji su dobiveni nakon uspješnog logina
     public class SessionStore
     {
-        private readonly record struct Session(CookieContainer Cookies, DateTime ExpiresAt);
+        private readonly record struct Session(CookieContainer Cookies, DateTime ExpiresAt, string Email);
 
         private readonly ConcurrentDictionary<string, Session> _sessions = new();
 
         // sesija traje 24h od zadnjeg korištenja
         private static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(24);
 
-        public string CreateSession(CookieContainer cookies)
+        public string CreateSession(CookieContainer cookies, string email)
         {
             // čistimo istekle sesije pri svakom novom loginu da se memorija ne puni
             CleanupExpired();
 
             // 32 slučajna bajta = 256-bitni token, kriptografski siguran
             var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
-            _sessions[token] = new Session(cookies, DateTime.UtcNow.Add(SessionLifetime));
+            _sessions[token] = new Session(cookies, DateTime.UtcNow.Add(SessionLifetime), email);
             return token;
         }
 
@@ -44,6 +44,21 @@ namespace E_Dnevnik_API.ScrapingServices
                 ExpiresAt = DateTime.UtcNow.Add(SessionLifetime),
             };
             return session.Cookies;
+        }
+
+        // vraća email za token ako je valjan, null ako je istekao ili ne postoji
+        public string? GetEmailByToken(string token)
+        {
+            if (!_sessions.TryGetValue(token, out var session))
+                return null;
+
+            if (session.ExpiresAt < DateTime.UtcNow)
+            {
+                _sessions.TryRemove(token, out _);
+                return null;
+            }
+
+            return session.Email;
         }
 
         // poziva se pri odjavi - briše sesiju odmah
