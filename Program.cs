@@ -1,7 +1,11 @@
 using System.Net;
 using System.Threading.RateLimiting;
+using E_Dnevnik_API.Database;
 using E_Dnevnik_API.ScrapingServices;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -67,6 +71,37 @@ if (!builder.Environment.IsDevelopment())
 
 builder.Services.AddMemoryCache();
 
+// --- PostgreSQL / EF Core ---
+var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+string connectionString;
+if (databaseUrl != null)
+{
+    // Heroku provides DATABASE_URL as postgres://user:password@host:port/database
+    var uri = new Uri(databaseUrl);
+    var userInfo = uri.UserInfo.Split(':');
+    connectionString = $"Host={uri.Host};Port={uri.Port};" +
+                       $"Database={uri.AbsolutePath.TrimStart('/')};" +
+                       $"Username={userInfo[0]};Password={userInfo[1]};" +
+                       $"SSL Mode=Require;Trust Server Certificate=true";
+}
+else
+{
+    connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
+}
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(connectionString));
+
+// --- Firebase Admin SDK ---
+// Heroku filesystem is ephemeral — never use FromFile(). Store JSON content as env var.
+var serviceAccountJson = Environment.GetEnvironmentVariable("FIREBASE_SERVICE_ACCOUNT_JSON");
+if (serviceAccountJson != null)
+{
+    FirebaseApp.Create(new AppOptions
+    {
+        Credential = GoogleCredential.FromJson(serviceAccountJson)
+    });
+}
+
 // cors: u developmentu dopuštamo sve origine (swagger ui radi iz browsera)
 // u produkciji ne dopuštamo nijedan origin - browseri su blokirani, postman nije jer ne šalje Origin header
 if (builder.Environment.IsDevelopment())
@@ -88,6 +123,13 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+// auto-migrate on startup — simpler than manual heroku run for this setup
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+}
 
 // heroku terminira TLS na load balanceru - bez ovoga UseHttpsRedirection bi redirectao na krivi port
 app.UseForwardedHeaders(
