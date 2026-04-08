@@ -8,7 +8,11 @@ namespace E_Dnevnik_API.ScrapingServices
     // ne čuvamo lozinke nigdje - samo kolačiće koji su dobiveni nakon uspješnog logina
     public class SessionStore
     {
-        private readonly record struct Session(CookieContainer Cookies, DateTime ExpiresAt, string Email);
+        private readonly record struct Session(
+            CookieContainer Cookies,
+            DateTime ExpiresAt,
+            string Email
+        );
 
         private readonly ConcurrentDictionary<string, Session> _sessions = new();
 

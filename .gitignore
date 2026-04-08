@@ -1,0 +1,22 @@
+# Build output
+bin/
+obj/
+
+# User secrets and local config (contains passwords — never commit)
+appsettings.Development.json
+appsettings.Local.json
+*.user
+
+# IDE
+.vs/
+.vscode/
+*.suo
+*.user
+.idea/
+
+# Claude Code local settings
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db

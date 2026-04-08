@@ -47,7 +47,8 @@ namespace E_Dnevnik_API.Controllers
             IMemoryCache memoryCache,
             CacheService cache,
             GradeChangeDetectionService gradeDetector
-        ) : base(sessionStore)
+        )
+            : base(sessionStore)
         {
             _subjectScraperService = subjectScraperService;
             _specificSubjectScraperService = specificSubjectScraperService;
@@ -75,9 +76,11 @@ namespace E_Dnevnik_API.Controllers
         private (string? token, CookieContainer? cookies, string? email) ResolveSession()
         {
             var token = GetBearerToken();
-            if (token is null) return (null, null, null);
+            if (token is null)
+                return (null, null, null);
             var cookies = SessionStore.GetCookies(token);
-            if (cookies is null) return (token, null, null);
+            if (cookies is null)
+                return (token, null, null);
             var email = SessionStore.GetEmailByToken(token);
             return (token, cookies, email);
         }
@@ -89,31 +92,50 @@ namespace E_Dnevnik_API.Controllers
         {
             var (_, cookies, email) = ResolveSession();
             if (cookies is null || email is null)
-                return Unauthorized("Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava.");
+                return Unauthorized(
+                    "Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava."
+                );
 
             using var client = CreateClient(cookies);
             try
             {
                 var (data, cachedAt, fromCache) = await _cache.GetOrFetch<SubjectScrapeResult>(
                     email,
-                    c => c.GradesData, c => c.GradesCachedAt,
-                    (c, json, time) => { c.GradesData = json; c.GradesCachedAt = time; },
+                    c => c.GradesData,
+                    c => c.GradesCachedAt,
+                    (c, json, time) =>
+                    {
+                        c.GradesData = json;
+                        c.GradesCachedAt = time;
+                    },
                     CacheService.GradesTTL,
                     () => _subjectScraperService.ScrapeSubjects(client),
-                    forceRefresh);
+                    forceRefresh
+                );
 
                 // Fire-and-forget grade drop detection — does not block the response
                 _ = Task.Run(() => _gradeDetector.CheckForDrops(email, data));
 
-                return Ok(new { data, cachedAt, isFromCache = fromCache });
+                return Ok(
+                    new
+                    {
+                        data,
+                        cachedAt,
+                        isFromCache = fromCache,
+                    }
+                );
             }
-            catch (ScraperException ex) { return StatusCode(ex.StatusCode, ex.Message); }
+            catch (ScraperException ex)
+            {
+                return StatusCode(ex.StatusCode, ex.Message);
+            }
         }
 
         [HttpGet("ScrapeSpecificSubjectGrades")]
         public async Task<IActionResult> ScrapeSpecificSubjectGrades(
             [FromQuery] string subjectId,
-            [FromQuery] bool forceRefresh = false)
+            [FromQuery] bool forceRefresh = false
+        )
         {
             if (string.IsNullOrEmpty(subjectId))
                 return BadRequest("Subject ID mora biti unesen.");
@@ -122,7 +144,9 @@ namespace E_Dnevnik_API.Controllers
 
             var (_, cookies, email) = ResolveSession();
             if (cookies is null || email is null)
-                return Unauthorized("Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava.");
+                return Unauthorized(
+                    "Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava."
+                );
 
             using var client = CreateClient(cookies);
             try
@@ -134,28 +158,52 @@ namespace E_Dnevnik_API.Controllers
                     cache = new StudentCache { Email = email };
                 }
 
-                var dict = cache.SpecificSubjectGradesJson != null
-                    ? JsonConvert.DeserializeObject<Dictionary<string, SubjectDetails>>(cache.SpecificSubjectGradesJson) ?? new()
-                    : new Dictionary<string, SubjectDetails>();
+                var dict =
+                    cache.SpecificSubjectGradesJson != null
+                        ? JsonConvert.DeserializeObject<Dictionary<string, SubjectDetails>>(
+                            cache.SpecificSubjectGradesJson
+                        ) ?? new()
+                        : new Dictionary<string, SubjectDetails>();
 
-                var isFresh = cache.SpecificSubjectGradesCachedAt != null &&
-                              cache.SpecificSubjectGradesCachedAt.Value > DateTime.UtcNow - CacheService.GradesTTL;
+                var isFresh =
+                    cache.SpecificSubjectGradesCachedAt != null
+                    && cache.SpecificSubjectGradesCachedAt.Value
+                        > DateTime.UtcNow - CacheService.GradesTTL;
 
                 // Apply force-refresh cooldown
-                var cooldownActive = cache.LastForceRefreshAt != null &&
-                                     cache.LastForceRefreshAt > DateTime.UtcNow - TimeSpan.FromMinutes(15);
-                if (forceRefresh && cooldownActive) forceRefresh = false;
+                var cooldownActive =
+                    cache.LastForceRefreshAt != null
+                    && cache.LastForceRefreshAt > DateTime.UtcNow - TimeSpan.FromMinutes(15);
+                if (forceRefresh && cooldownActive)
+                    forceRefresh = false;
 
                 if (!forceRefresh && isFresh && dict.ContainsKey(subjectId))
                 {
-                    return Ok(new { data = dict[subjectId], cachedAt = cache.SpecificSubjectGradesCachedAt, isFromCache = true });
+                    return Ok(
+                        new
+                        {
+                            data = dict[subjectId],
+                            cachedAt = cache.SpecificSubjectGradesCachedAt,
+                            isFromCache = true,
+                        }
+                    );
                 }
 
                 var fresh = await _specificSubjectScraperService.ScrapeSubjects(client, subjectId);
                 var now = DateTime.UtcNow;
-                return Ok(new { data = fresh, cachedAt = now, isFromCache = false });
+                return Ok(
+                    new
+                    {
+                        data = fresh,
+                        cachedAt = now,
+                        isFromCache = false,
+                    }
+                );
             }
-            catch (ScraperException ex) { return StatusCode(ex.StatusCode, ex.Message); }
+            catch (ScraperException ex)
+            {
+                return StatusCode(ex.StatusCode, ex.Message);
+            }
         }
 
         [HttpGet("ScrapeStudentProfile")]
@@ -163,21 +211,39 @@ namespace E_Dnevnik_API.Controllers
         {
             var (_, cookies, email) = ResolveSession();
             if (cookies is null || email is null)
-                return Unauthorized("Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava.");
+                return Unauthorized(
+                    "Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava."
+                );
 
             using var client = CreateClient(cookies);
             try
             {
                 var (data, cachedAt, fromCache) = await _cache.GetOrFetch<StudentProfileResult>(
                     email,
-                    c => c.ProfileData, c => c.ProfileCachedAt,
-                    (c, json, time) => { c.ProfileData = json; c.ProfileCachedAt = time; },
+                    c => c.ProfileData,
+                    c => c.ProfileCachedAt,
+                    (c, json, time) =>
+                    {
+                        c.ProfileData = json;
+                        c.ProfileCachedAt = time;
+                    },
                     CacheService.ProfileTTL,
                     () => _studentProfileScraperService.ScrapeStudentProfile(client),
-                    forceRefresh);
-                return Ok(new { data, cachedAt, isFromCache = fromCache });
+                    forceRefresh
+                );
+                return Ok(
+                    new
+                    {
+                        data,
+                        cachedAt,
+                        isFromCache = fromCache,
+                    }
+                );
             }
-            catch (ScraperException ex) { return StatusCode(ex.StatusCode, ex.Message); }
+            catch (ScraperException ex)
+            {
+                return StatusCode(ex.StatusCode, ex.Message);
+            }
         }
 
         [HttpGet("ScrapeTests")]
@@ -185,21 +251,41 @@ namespace E_Dnevnik_API.Controllers
         {
             var (_, cookies, email) = ResolveSession();
             if (cookies is null || email is null)
-                return Unauthorized("Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava.");
+                return Unauthorized(
+                    "Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava."
+                );
 
             using var client = CreateClient(cookies);
             try
             {
-                var (data, cachedAt, fromCache) = await _cache.GetOrFetch<Dictionary<string, List<TestInfo>>>(
+                var (data, cachedAt, fromCache) = await _cache.GetOrFetch<
+                    Dictionary<string, List<TestInfo>>
+                >(
                     email,
-                    c => c.TestsData, c => c.TestsCachedAt,
-                    (c, json, time) => { c.TestsData = json; c.TestsCachedAt = time; },
+                    c => c.TestsData,
+                    c => c.TestsCachedAt,
+                    (c, json, time) =>
+                    {
+                        c.TestsData = json;
+                        c.TestsCachedAt = time;
+                    },
                     CacheService.TestsTTL,
                     () => _testScraperService.ScrapeTests(client),
-                    forceRefresh);
-                return Ok(new { data, cachedAt, isFromCache = fromCache });
+                    forceRefresh
+                );
+                return Ok(
+                    new
+                    {
+                        data,
+                        cachedAt,
+                        isFromCache = fromCache,
+                    }
+                );
             }
-            catch (ScraperException ex) { return StatusCode(ex.StatusCode, ex.Message); }
+            catch (ScraperException ex)
+            {
+                return StatusCode(ex.StatusCode, ex.Message);
+            }
         }
 
         [HttpGet("ScrapeScheduleTable")]
@@ -207,21 +293,39 @@ namespace E_Dnevnik_API.Controllers
         {
             var (_, cookies, email) = ResolveSession();
             if (cookies is null || email is null)
-                return Unauthorized("Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava.");
+                return Unauthorized(
+                    "Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava."
+                );
 
             using var client = CreateClient(cookies);
             try
             {
                 var (data, cachedAt, fromCache) = await _cache.GetOrFetch<ScheduleResult>(
                     email,
-                    c => c.ScheduleData, c => c.ScheduleCachedAt,
-                    (c, json, time) => { c.ScheduleData = json; c.ScheduleCachedAt = time; },
+                    c => c.ScheduleData,
+                    c => c.ScheduleCachedAt,
+                    (c, json, time) =>
+                    {
+                        c.ScheduleData = json;
+                        c.ScheduleCachedAt = time;
+                    },
                     CacheService.ScheduleTTL,
                     () => _scheduleTableScraperService.ScrapeScheduleTable(client),
-                    forceRefresh);
-                return Ok(new { data, cachedAt, isFromCache = fromCache });
+                    forceRefresh
+                );
+                return Ok(
+                    new
+                    {
+                        data,
+                        cachedAt,
+                        isFromCache = fromCache,
+                    }
+                );
             }
-            catch (ScraperException ex) { return StatusCode(ex.StatusCode, ex.Message); }
+            catch (ScraperException ex)
+            {
+                return StatusCode(ex.StatusCode, ex.Message);
+            }
         }
 
         [HttpGet("ScrapeAbsences")]
@@ -229,43 +333,83 @@ namespace E_Dnevnik_API.Controllers
         {
             var (_, cookies, email) = ResolveSession();
             if (cookies is null || email is null)
-                return Unauthorized("Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava.");
+                return Unauthorized(
+                    "Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava."
+                );
 
             using var client = CreateClient(cookies);
             try
             {
                 var (data, cachedAt, fromCache) = await _cache.GetOrFetch<AbsencesResult>(
                     email,
-                    c => c.AbsencesData, c => c.AbsencesCachedAt,
-                    (c, json, time) => { c.AbsencesData = json; c.AbsencesCachedAt = time; },
+                    c => c.AbsencesData,
+                    c => c.AbsencesCachedAt,
+                    (c, json, time) =>
+                    {
+                        c.AbsencesData = json;
+                        c.AbsencesCachedAt = time;
+                    },
                     CacheService.AbsencesTTL,
                     () => _absenceScraperService.ScrapeAbsences(client),
-                    forceRefresh);
-                return Ok(new { data, cachedAt, isFromCache = fromCache });
+                    forceRefresh
+                );
+                return Ok(
+                    new
+                    {
+                        data,
+                        cachedAt,
+                        isFromCache = fromCache,
+                    }
+                );
             }
-            catch (ScraperException ex) { return StatusCode(ex.StatusCode, ex.Message); }
+            catch (ScraperException ex)
+            {
+                return StatusCode(ex.StatusCode, ex.Message);
+            }
         }
 
         [HttpGet("ScrapeDifferentGrades")]
-        public async Task<IActionResult> ScrapeDifferentGradeLink([FromQuery] bool forceRefresh = false)
+        public async Task<IActionResult> ScrapeDifferentGradeLink(
+            [FromQuery] bool forceRefresh = false
+        )
         {
             var (_, cookies, email) = ResolveSession();
             if (cookies is null || email is null)
-                return Unauthorized("Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava.");
+                return Unauthorized(
+                    "Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava."
+                );
 
             using var client = CreateClient(cookies);
             try
             {
-                var (data, cachedAt, fromCache) = await _cache.GetOrFetch<List<GradeSubjectDetails>>(
+                var (data, cachedAt, fromCache) = await _cache.GetOrFetch<
+                    List<GradeSubjectDetails>
+                >(
                     email,
-                    c => c.GradesDifferentData, c => c.GradesDifferentCachedAt,
-                    (c, json, time) => { c.GradesDifferentData = json; c.GradesDifferentCachedAt = time; },
+                    c => c.GradesDifferentData,
+                    c => c.GradesDifferentCachedAt,
+                    (c, json, time) =>
+                    {
+                        c.GradesDifferentData = json;
+                        c.GradesDifferentCachedAt = time;
+                    },
                     CacheService.GradesDifferentTTL,
                     () => _differentGradeLinkScraperService.ScrapeDifferentGradeLink(client),
-                    forceRefresh);
-                return Ok(new { data, cachedAt, isFromCache = fromCache });
+                    forceRefresh
+                );
+                return Ok(
+                    new
+                    {
+                        data,
+                        cachedAt,
+                        isFromCache = fromCache,
+                    }
+                );
             }
-            catch (ScraperException ex) { return StatusCode(ex.StatusCode, ex.Message); }
+            catch (ScraperException ex)
+            {
+                return StatusCode(ex.StatusCode, ex.Message);
+            }
         }
 
         // --- IMemoryCache endpoints (unchanged from original) ---
@@ -274,11 +418,18 @@ namespace E_Dnevnik_API.Controllers
         public async Task<ActionResult<NewGradesResult>> ScrapeNewGrades()
         {
             var token = GetBearerToken();
-            if (token is null) return Unauthorized("Authorization header s Bearer tokenom je obavezan.");
+            if (token is null)
+                return Unauthorized("Authorization header s Bearer tokenom je obavezan.");
             var cookies = SessionStore.GetCookies(token);
-            if (cookies is null) return Unauthorized("Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava.");
+            if (cookies is null)
+                return Unauthorized(
+                    "Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava."
+                );
 
-            if (_memoryCache.TryGetValue<NewGradesResult>($"newgrades:{token}", out var cached) && cached is not null)
+            if (
+                _memoryCache.TryGetValue<NewGradesResult>($"newgrades:{token}", out var cached)
+                && cached is not null
+            )
                 return Ok(cached);
 
             using var client = CreateClient(cookies);
@@ -288,18 +439,28 @@ namespace E_Dnevnik_API.Controllers
                 _memoryCache.Set($"newgrades:{token}", result, TimeSpan.FromMinutes(10));
                 return Ok(result);
             }
-            catch (ScraperException ex) { return StatusCode(ex.StatusCode, ex.Message); }
+            catch (ScraperException ex)
+            {
+                return StatusCode(ex.StatusCode, ex.Message);
+            }
         }
 
         [HttpGet("ScrapeNewTests")]
         public async Task<ActionResult<NewTestsResult>> ScrapeNewTests()
         {
             var token = GetBearerToken();
-            if (token is null) return Unauthorized("Authorization header s Bearer tokenom je obavezan.");
+            if (token is null)
+                return Unauthorized("Authorization header s Bearer tokenom je obavezan.");
             var cookies = SessionStore.GetCookies(token);
-            if (cookies is null) return Unauthorized("Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava.");
+            if (cookies is null)
+                return Unauthorized(
+                    "Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava."
+                );
 
-            if (_memoryCache.TryGetValue<NewTestsResult>($"newtests:{token}", out var cached) && cached is not null)
+            if (
+                _memoryCache.TryGetValue<NewTestsResult>($"newtests:{token}", out var cached)
+                && cached is not null
+            )
                 return Ok(cached);
 
             using var client = CreateClient(cookies);
@@ -309,37 +470,54 @@ namespace E_Dnevnik_API.Controllers
                 _memoryCache.Set($"newtests:{token}", result, TimeSpan.FromMinutes(10));
                 return Ok(result);
             }
-            catch (ScraperException ex) { return StatusCode(ex.StatusCode, ex.Message); }
+            catch (ScraperException ex)
+            {
+                return StatusCode(ex.StatusCode, ex.Message);
+            }
         }
 
         [HttpGet("CalculateMissedClassPercentages")]
-        public async Task<ActionResult<Dictionary<string, string>>> CalculateMissedClassPercentages()
+        public async Task<
+            ActionResult<Dictionary<string, string>>
+        > CalculateMissedClassPercentages()
         {
             var (_, cookies, _) = ResolveSession();
             if (cookies is null)
-                return Unauthorized("Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava.");
+                return Unauthorized(
+                    "Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava."
+                );
 
             using var client = CreateClient(cookies);
             try
             {
                 var scheduleData = await _scheduleTableScraperService.ScrapeScheduleTable(client);
-                var yearlyHours = _scheduleTableScraperService.CalculateYearlySubjectHours(scheduleData);
+                var yearlyHours = _scheduleTableScraperService.CalculateYearlySubjectHours(
+                    scheduleData
+                );
                 var absencesData = await _absenceScraperService.ScrapeAbsences(client);
                 var daysMissed = _absenceScraperService.CalculateDaysMissed(absencesData);
                 return Ok(CalculateMissedPercentages(yearlyHours, daysMissed));
             }
-            catch (ScraperException ex) { return StatusCode(ex.StatusCode, ex.Message); }
+            catch (ScraperException ex)
+            {
+                return StatusCode(ex.StatusCode, ex.Message);
+            }
         }
 
         private Dictionary<string, string> CalculateMissedPercentages(
             Dictionary<string, int> yearlyHours,
-            Dictionary<string, int> daysMissed)
+            Dictionary<string, int> daysMissed
+        )
         {
             var percentages = new Dictionary<string, string>();
             foreach (var subject in yearlyHours)
             {
                 var totalHours = subject.Value;
-                if (totalHours == 0) { percentages[subject.Key] = "0.00%"; continue; }
+                if (totalHours == 0)
+                {
+                    percentages[subject.Key] = "0.00%";
+                    continue;
+                }
                 var missedDays = daysMissed.ContainsKey(subject.Key) ? daysMissed[subject.Key] : 0;
                 percentages[subject.Key] = $"{(double)missedDays / totalHours * 100:N2}%";
             }

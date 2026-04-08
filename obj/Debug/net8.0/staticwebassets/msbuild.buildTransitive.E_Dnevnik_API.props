@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="..\buildMultiTargeting\E_Dnevnik_API.props" />
-</Project>

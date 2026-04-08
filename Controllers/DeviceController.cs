@@ -10,7 +10,8 @@ namespace E_Dnevnik_API.Controllers
     {
         private readonly AppDbContext _db;
 
-        public DeviceController(SessionStore sessionStore, AppDbContext db) : base(sessionStore)
+        public DeviceController(SessionStore sessionStore, AppDbContext db)
+            : base(sessionStore)
         {
             _db = db;
         }
@@ -25,7 +26,9 @@ namespace E_Dnevnik_API.Controllers
 
             var email = TryGetEmail();
             if (email is null)
-                return Unauthorized("Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava.");
+                return Unauthorized(
+                    "Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava."
+                );
 
             var cache = await _db.StudentCache.FindAsync(email);
             if (cache == null)
