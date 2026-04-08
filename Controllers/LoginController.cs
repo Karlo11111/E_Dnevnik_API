@@ -67,7 +67,7 @@ namespace E_Dnevnik_API.Controllers
             // cookije smo dobili, klijent za login nam više ne treba
             result.Client.Dispose();
 
-            var token = _sessionStore.CreateSession(result.Cookies!);
+            var token = _sessionStore.CreateSession(result.Cookies!, request.Email);
             return Ok(new { token });
         }
 
