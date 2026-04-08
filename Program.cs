@@ -124,6 +124,8 @@ builder.Services.AddScoped<E_Dnevnik_API.Services.FcmService>();
 builder.Services.AddHttpClient<E_Dnevnik_API.Services.TaskGenerationService>();
 builder.Services.AddScoped<E_Dnevnik_API.Services.TaskGenerationService>();
 
+builder.Services.AddScoped<E_Dnevnik_API.Services.GradeChangeDetectionService>();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
