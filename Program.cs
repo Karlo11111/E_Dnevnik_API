@@ -118,6 +118,8 @@ else
 }
 builder.Services.AddHostedService<NewDataRefreshService>();
 
+builder.Services.AddScoped<E_Dnevnik_API.Services.CacheService>();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
