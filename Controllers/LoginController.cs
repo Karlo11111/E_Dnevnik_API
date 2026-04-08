@@ -21,7 +21,8 @@ namespace E_Dnevnik_API.Controllers
             SessionStore sessionStore,
             LoginBruteForceProtection bruteForce,
             ILogger<LoginController> logger,
-            AppDbContext db)
+            AppDbContext db
+        )
         {
             _sessionStore = sessionStore;
             _bruteForce = bruteForce;
@@ -41,10 +42,13 @@ namespace E_Dnevnik_API.Controllers
             {
                 _logger.LogWarning(
                     "login blokiran (brute force) | email={Email} ip={Ip}",
-                    request.Email, ip);
+                    request.Email,
+                    ip
+                );
                 return StatusCode(
                     StatusCodes.Status429TooManyRequests,
-                    "previše neuspjelih pokušaja prijave. pokušaj ponovo za 15 minuta.");
+                    "previše neuspjelih pokušaja prijave. pokušaj ponovo za 15 minuta."
+                );
             }
 
             var result = await EduHrLoginService.LoginAsync(request.Email, request.Password);
@@ -54,7 +58,10 @@ namespace E_Dnevnik_API.Controllers
                 _bruteForce.RecordFailure(request.Email);
                 _logger.LogWarning(
                     "login neuspješan | email={Email} ip={Ip} status={Status}",
-                    request.Email, ip, result.StatusCode);
+                    request.Email,
+                    ip,
+                    result.StatusCode
+                );
                 return StatusCode(result.StatusCode, result.Error);
             }
 
@@ -79,9 +86,12 @@ namespace E_Dnevnik_API.Controllers
             // Generate Firebase custom token so Flutter can sign into Firebase Auth.
             // UID = sha256(email)[..28] — stable, non-PII, consistent across logins.
             string? firebaseToken = null;
-            var uid = Convert.ToHexString(
-                System.Security.Cryptography.SHA256.HashData(
-                    System.Text.Encoding.UTF8.GetBytes(request.Email.ToLowerInvariant())))
+            var uid = Convert
+                .ToHexString(
+                    System.Security.Cryptography.SHA256.HashData(
+                        System.Text.Encoding.UTF8.GetBytes(request.Email.ToLowerInvariant())
+                    )
+                )
                 .ToLower()[..28];
 
             if (FirebaseApp.DefaultInstance != null)
@@ -92,11 +102,21 @@ namespace E_Dnevnik_API.Controllers
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning("Firebase custom token generation failed: {Message}", ex.Message);
+                    _logger.LogWarning(
+                        "Firebase custom token generation failed: {Message}",
+                        ex.Message
+                    );
                 }
             }
 
-            return Ok(new { token, firebaseToken, uid });
+            return Ok(
+                new
+                {
+                    token,
+                    firebaseToken,
+                    uid,
+                }
+            );
         }
 
         [HttpDelete]

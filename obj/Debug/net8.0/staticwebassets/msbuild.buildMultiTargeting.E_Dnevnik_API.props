@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="..\build\E_Dnevnik_API.props" />
-</Project>

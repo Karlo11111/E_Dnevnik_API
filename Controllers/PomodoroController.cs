@@ -11,7 +11,8 @@ namespace E_Dnevnik_API.Controllers
     {
         private readonly AppDbContext _db;
 
-        public PomodoroController(SessionStore sessionStore, AppDbContext db) : base(sessionStore)
+        public PomodoroController(SessionStore sessionStore, AppDbContext db)
+            : base(sessionStore)
         {
             _db = db;
         }
@@ -22,11 +23,14 @@ namespace E_Dnevnik_API.Controllers
         {
             var email = TryGetEmail();
             if (email is null)
-                return Unauthorized("Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava.");
+                return Unauthorized(
+                    "Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava."
+                );
 
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
-            var session = await _db.PomodoroSessions
-                .FirstOrDefaultAsync(s => s.Email == email && s.SessionDate == today);
+            var session = await _db.PomodoroSessions.FirstOrDefaultAsync(s =>
+                s.Email == email && s.SessionDate == today
+            );
 
             if (session == null)
             {
@@ -49,15 +53,17 @@ namespace E_Dnevnik_API.Controllers
         {
             var email = TryGetEmail();
             if (email is null)
-                return Unauthorized("Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava.");
+                return Unauthorized(
+                    "Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava."
+                );
             return Ok(await CalculateStreak(email));
         }
 
         private async Task<object> CalculateStreak(string email)
         {
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
-            var sessions = await _db.PomodoroSessions
-                .Where(s => s.Email == email && s.SessionDate <= today)
+            var sessions = await _db
+                .PomodoroSessions.Where(s => s.Email == email && s.SessionDate <= today)
                 .OrderByDescending(s => s.SessionDate)
                 .Take(365)
                 .ToListAsync();
@@ -67,18 +73,28 @@ namespace E_Dnevnik_API.Controllers
             foreach (var s in sessions)
             {
                 if (s.SessionDate == checkDate && s.SessionsCompleted > 0)
-                { currentStreak++; checkDate = checkDate.AddDays(-1); }
-                else if (s.SessionDate < checkDate) break;
+                {
+                    currentStreak++;
+                    checkDate = checkDate.AddDays(-1);
+                }
+                else if (s.SessionDate < checkDate)
+                    break;
             }
 
-            int longestStreak = 0, tempStreak = 0;
+            int longestStreak = 0,
+                tempStreak = 0;
             DateOnly? prev = null;
             foreach (var s in sessions.OrderBy(s => s.SessionDate))
             {
-                if (s.SessionsCompleted == 0) continue;
+                if (s.SessionsCompleted == 0)
+                    continue;
                 if (prev == null || s.SessionDate == prev.Value.AddDays(1))
-                { tempStreak++; longestStreak = Math.Max(longestStreak, tempStreak); }
-                else tempStreak = 1;
+                {
+                    tempStreak++;
+                    longestStreak = Math.Max(longestStreak, tempStreak);
+                }
+                else
+                    tempStreak = 1;
                 prev = s.SessionDate;
             }
 
@@ -86,8 +102,11 @@ namespace E_Dnevnik_API.Controllers
             {
                 currentStreak,
                 longestStreak,
-                todaySessions = sessions.FirstOrDefault(s => s.SessionDate == today)?.SessionsCompleted ?? 0,
-                todayMinutes = sessions.FirstOrDefault(s => s.SessionDate == today)?.TotalMinutes ?? 0
+                todaySessions = sessions
+                    .FirstOrDefault(s => s.SessionDate == today)
+                    ?.SessionsCompleted ?? 0,
+                todayMinutes = sessions.FirstOrDefault(s => s.SessionDate == today)?.TotalMinutes
+                    ?? 0,
             };
         }
     }

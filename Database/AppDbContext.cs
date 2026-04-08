@@ -5,7 +5,8 @@ namespace E_Dnevnik_API.Database
 {
     public class AppDbContext : DbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+        public AppDbContext(DbContextOptions<AppDbContext> options)
+            : base(options) { }
 
         public DbSet<StudentCache> StudentCache => Set<StudentCache>();
         public DbSet<GradeSnapshot> GradeSnapshots => Set<GradeSnapshot>();
