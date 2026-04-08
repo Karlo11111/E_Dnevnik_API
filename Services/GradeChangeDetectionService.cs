@@ -107,7 +107,13 @@ namespace E_Dnevnik_API.Services
             await _fcm.SendNotification(
                 email: email,
                 title: $"Novi zadaci — {subjectName}",
-                body: $"Prosjek ti je pao na {newAverage:F1}. Pripremili smo {tasks.Count} zadataka koji ti mogu pomoći.");
+                body: $"Prosjek ti je pao na {newAverage:F1}. Pripremili smo {tasks.Count} zadataka koji ti mogu pomoći.",
+                data: new Dictionary<string, string>
+                {
+                    ["type"] = "grade_drop",
+                    ["subjectName"] = subjectName,
+                    ["subjectId"] = subjectId
+                });
         }
     }
 }

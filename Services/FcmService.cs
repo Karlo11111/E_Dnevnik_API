@@ -14,7 +14,11 @@ namespace E_Dnevnik_API.Services
             _logger = logger;
         }
 
-        public async Task SendNotification(string email, string title, string body)
+        public async Task SendNotification(
+            string email,
+            string title,
+            string body,
+            Dictionary<string, string>? data = null)
         {
             var cache = await _db.StudentCache.FindAsync(email);
             if (cache?.FcmToken == null)
@@ -26,7 +30,8 @@ namespace E_Dnevnik_API.Services
             var message = new Message
             {
                 Token = cache.FcmToken,
-                Notification = new Notification { Title = title, Body = body }
+                Notification = new Notification { Title = title, Body = body },
+                Data = data
             };
 
             try
