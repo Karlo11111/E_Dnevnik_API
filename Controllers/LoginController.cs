@@ -115,6 +115,7 @@ namespace E_Dnevnik_API.Controllers
                     token,
                     firebaseToken,
                     uid,
+                    isOdlikasPlus = cache.IsOdlikasPlus,
                 }
             );
         }
