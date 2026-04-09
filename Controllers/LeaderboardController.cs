@@ -1,5 +1,6 @@
 using E_Dnevnik_API.Database;
 using E_Dnevnik_API.Database.Models;
+using E_Dnevnik_API.Models.ScrapeStudentProfile;
 using E_Dnevnik_API.Models.ScrapeSubjects;
 using E_Dnevnik_API.ScrapingServices;
 using Microsoft.AspNetCore.Mvc;
@@ -43,6 +44,18 @@ namespace E_Dnevnik_API.Controllers
             if (nicknameInUse)
                 return Conflict(new { error = "Taj nadimak je već zauzet. Odaberi drugi." });
 
+            var cache = await _db.StudentCache.FindAsync(email);
+            if (cache?.ProfileData == null)
+                return BadRequest(
+                    new
+                    {
+                        error = "Profil nije još učitan. Otvori profil u aplikaciji i pokušaj ponovo.",
+                    }
+                );
+
+            var profile = JsonConvert.DeserializeObject<StudentProfileResult>(cache.ProfileData);
+            var studentProgram = profile?.StudentProfile?.StudentProgram;
+
             var entry = await _db.LeaderboardEntries.FindAsync(email);
             if (entry == null)
             {
@@ -55,6 +68,7 @@ namespace E_Dnevnik_API.Controllers
             entry.SchoolId = dto.SchoolId;
             entry.City = dto.City;
             entry.County = dto.County;
+            entry.StudentProgram = studentProgram;
             await _db.SaveChangesAsync();
             return Ok();
         }
@@ -77,11 +91,11 @@ namespace E_Dnevnik_API.Controllers
             return Ok();
         }
 
-        [HttpGet("Class/{classId}")]
-        public async Task<IActionResult> GetClassLeaderboard(string classId)
+        [HttpGet("School/{schoolId}/Class/{classId}")]
+        public async Task<IActionResult> GetClassLeaderboard(string schoolId, string classId)
         {
             var entries = await _db
-                .LeaderboardEntries.Where(e => e.ClassId == classId)
+                .LeaderboardEntries.Where(e => e.SchoolId == schoolId && e.ClassId == classId)
                 .OrderByDescending(e => e.CombinedScore)
                 .Take(50)
                 .Select(e => new
@@ -91,6 +105,47 @@ namespace E_Dnevnik_API.Controllers
                     e.CurrentStreak,
                     e.GradeDeltaScore,
                     e.StreakScore,
+                })
+                .ToListAsync();
+            return Ok(entries);
+        }
+
+        [HttpGet("School/{schoolId}")]
+        public async Task<IActionResult> GetSchoolLeaderboard(string schoolId)
+        {
+            var entries = await _db
+                .LeaderboardEntries.Where(e => e.SchoolId == schoolId)
+                .OrderByDescending(e => e.CombinedScore)
+                .Take(50)
+                .Select(e => new
+                {
+                    e.Nickname,
+                    e.CombinedScore,
+                    e.CurrentStreak,
+                    e.GradeDeltaScore,
+                    e.StreakScore,
+                    e.ClassId,
+                })
+                .ToListAsync();
+            return Ok(entries);
+        }
+
+        [HttpGet("Program/{program}")]
+        public async Task<IActionResult> GetProgramLeaderboard(string program)
+        {
+            var entries = await _db
+                .LeaderboardEntries.Where(e => e.StudentProgram == program)
+                .OrderByDescending(e => e.CombinedScore)
+                .Take(50)
+                .Select(e => new
+                {
+                    e.Nickname,
+                    e.CombinedScore,
+                    e.CurrentStreak,
+                    e.GradeDeltaScore,
+                    e.StreakScore,
+                    e.City,
+                    e.County,
                 })
                 .ToListAsync();
             return Ok(entries);

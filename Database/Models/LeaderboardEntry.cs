@@ -20,6 +20,8 @@ namespace E_Dnevnik_API.Database.Models
         public decimal CombinedScore { get; set; } = 0;
         public int CurrentStreak { get; set; } = 0;
 
+        public string? StudentProgram { get; set; }
+
         public DateTime OptedInAt { get; set; } = DateTime.UtcNow;
         public DateTime? LastScoreUpdate { get; set; }
     }
