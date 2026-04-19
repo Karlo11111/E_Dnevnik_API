@@ -96,10 +96,17 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 var serviceAccountJson = Environment.GetEnvironmentVariable("FIREBASE_SERVICE_ACCOUNT_JSON");
 if (serviceAccountJson != null)
 {
-    FirebaseApp.Create(new AppOptions
+    try
     {
-        Credential = GoogleCredential.FromJson(serviceAccountJson)
-    });
+        FirebaseApp.Create(new AppOptions
+        {
+            Credential = GoogleCredential.FromJson(serviceAccountJson)
+        });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Firebase] Failed to initialize: {ex.Message}. Push notifications will be disabled.");
+    }
 }
 
 // cors: u developmentu dopuštamo sve origine (swagger ui radi iz browsera)
