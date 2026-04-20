@@ -79,27 +79,36 @@ if (databaseUrl != null)
     // Heroku provides DATABASE_URL as postgres://user:password@host:port/database
     var uri = new Uri(databaseUrl);
     var userInfo = uri.UserInfo.Split(':');
-    connectionString = $"Host={uri.Host};Port={uri.Port};" +
-                       $"Database={uri.AbsolutePath.TrimStart('/')};" +
-                       $"Username={userInfo[0]};Password={userInfo[1]};" +
-                       $"SSL Mode=Require;Trust Server Certificate=true";
+    var dbPort = uri.Port == -1 ? 5432 : uri.Port;
+    connectionString =
+        $"Host={uri.Host};Port={dbPort};"
+        + $"Database={uri.AbsolutePath.TrimStart('/')};"
+        + $"Username={userInfo[0]};Password={userInfo[1]};"
+        + $"SSL Mode=Require;Trust Server Certificate=true";
 }
 else
 {
     connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
 }
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
+builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 
 // --- Firebase Admin SDK ---
 // Heroku filesystem is ephemeral — never use FromFile(). Store JSON content as env var.
 var serviceAccountJson = Environment.GetEnvironmentVariable("FIREBASE_SERVICE_ACCOUNT_JSON");
 if (serviceAccountJson != null)
 {
-    FirebaseApp.Create(new AppOptions
+    try
     {
-        Credential = GoogleCredential.FromJson(serviceAccountJson)
-    });
+        FirebaseApp.Create(
+            new AppOptions { Credential = GoogleCredential.FromJson(serviceAccountJson) }
+        );
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(
+            $"[Firebase] Failed to initialize: {ex.Message}. Push notifications will be disabled."
+        );
+    }
 }
 
 // cors: u developmentu dopuštamo sve origine (swagger ui radi iz browsera)
@@ -130,28 +139,33 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-    {
-        Name = "Authorization",
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "token",
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-    });
-    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
-    {
+    c.AddSecurityDefinition(
+        "Bearer",
+        new Microsoft.OpenApi.Models.OpenApiSecurityScheme
         {
-            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-            {
-                Reference = new Microsoft.OpenApi.Models.OpenApiReference
-                {
-                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
+            Name = "Authorization",
+            Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "token",
+            In = Microsoft.OpenApi.Models.ParameterLocation.Header,
         }
-    });
+    );
+    c.AddSecurityRequirement(
+        new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+        {
+            {
+                new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                {
+                    Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                    {
+                        Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                        Id = "Bearer",
+                    },
+                },
+                Array.Empty<string>()
+            },
+        }
+    );
 });
 
 var app = builder.Build();
