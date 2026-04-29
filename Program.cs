@@ -114,7 +114,8 @@ if (serviceAccountJson != null)
 }
 
 // --- Stripe ---
-var stripeKey = Environment.GetEnvironmentVariable("STRIPE_SECRET_KEY") ?? "";
+var stripeKey = Environment.GetEnvironmentVariable("STRIPE_SECRET_KEY")
+    ?? throw new InvalidOperationException("STRIPE_SECRET_KEY environment variable is not set.");
 builder.Services.AddSingleton(new StripeClient(stripeKey));
 
 // --- Firestore ---
@@ -122,8 +123,8 @@ if (serviceAccountJson != null)
 {
     try
     {
-        var projectId = System.Text.Json.JsonDocument.Parse(serviceAccountJson)
-            .RootElement.GetProperty("project_id").GetString()!;
+        using var doc = System.Text.Json.JsonDocument.Parse(serviceAccountJson);
+        var projectId = doc.RootElement.GetProperty("project_id").GetString()!;
         var firestoreDb = new FirestoreDbBuilder
         {
             ProjectId = projectId,

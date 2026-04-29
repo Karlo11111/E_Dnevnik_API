@@ -91,10 +91,17 @@ namespace E_Dnevnik_API.Controllers
                 return BadRequest("subscriptionId je obavezan.");
 
             Subscription subscription;
+            Customer? customer;
             try
             {
                 var subscriptionService = new SubscriptionService(_stripe);
                 subscription = await subscriptionService.GetAsync(request.SubscriptionId);
+
+                var customerService = new CustomerService(_stripe);
+                var customers = await customerService.ListAsync(
+                    new CustomerListOptions { Email = email, Limit = 1 }
+                );
+                customer = customers.Data.FirstOrDefault();
             }
             catch (StripeException ex) when (ex.StripeError?.Code == "resource_missing")
             {
@@ -106,12 +113,6 @@ namespace E_Dnevnik_API.Controllers
                 return StatusCode(500, "Greška pri provjeri pretplate.");
             }
 
-            // Verify the subscription belongs to the authenticated user
-            var customerService = new CustomerService(_stripe);
-            var customers = await customerService.ListAsync(
-                new CustomerListOptions { Email = email, Limit = 1 }
-            );
-            var customer = customers.Data.FirstOrDefault();
             if (customer is null || subscription.CustomerId != customer.Id)
                 return Forbid();
 
@@ -145,10 +146,17 @@ namespace E_Dnevnik_API.Controllers
                 cache.OdlikasPlusSince = DateTime.UtcNow;
                 await _db.SaveChangesAsync();
             }
+            else
+            {
+                _logger.LogWarning(
+                    "StudentCache row not found for {Email} during Confirm — Postgres not updated",
+                    email
+                );
+            }
 
             return Ok(new { success = true });
         }
 
-        public record ConfirmRequest(string SubscriptionId);
+        public record ConfirmRequest(string? SubscriptionId);
     }
 }
