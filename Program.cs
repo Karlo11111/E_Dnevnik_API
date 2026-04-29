@@ -4,8 +4,10 @@ using E_Dnevnik_API.Database;
 using E_Dnevnik_API.ScrapingServices;
 using FirebaseAdmin;
 using Google.Apis.Auth.OAuth2;
+using Google.Cloud.Firestore;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using Stripe;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -107,6 +109,33 @@ if (serviceAccountJson != null)
     {
         Console.WriteLine(
             $"[Firebase] Failed to initialize: {ex.Message}. Push notifications will be disabled."
+        );
+    }
+}
+
+// --- Stripe ---
+var stripeKey = Environment.GetEnvironmentVariable("STRIPE_SECRET_KEY")
+    ?? throw new InvalidOperationException("STRIPE_SECRET_KEY environment variable is not set.");
+builder.Services.AddSingleton(new StripeClient(stripeKey));
+
+// --- Firestore ---
+if (serviceAccountJson != null)
+{
+    try
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(serviceAccountJson);
+        var projectId = doc.RootElement.GetProperty("project_id").GetString()!;
+        var firestoreDb = new FirestoreDbBuilder
+        {
+            ProjectId = projectId,
+            Credential = Google.Apis.Auth.OAuth2.GoogleCredential.FromJson(serviceAccountJson),
+        }.Build();
+        builder.Services.AddSingleton(firestoreDb);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(
+            $"[Firestore] Failed to initialize: {ex.Message}. Firestore writes will be skipped."
         );
     }
 }
