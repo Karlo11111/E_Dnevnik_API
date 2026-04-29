@@ -76,14 +76,14 @@ namespace E_Dnevnik_API.Controllers
         [HttpPost("Confirm")]
         public async Task<IActionResult> Confirm([FromBody] ConfirmRequest request)
         {
-            if (string.IsNullOrEmpty(request.SubscriptionId))
-                return BadRequest("subscriptionId je obavezan.");
-
             var email = TryGetEmail();
             if (email is null)
                 return Unauthorized(
                     "Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava."
                 );
+
+            if (string.IsNullOrEmpty(request.SubscriptionId))
+                return BadRequest("subscriptionId je obavezan.");
 
             Subscription subscription;
             try
