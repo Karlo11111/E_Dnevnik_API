@@ -64,6 +64,11 @@ namespace E_Dnevnik_API.Controllers
 
                 // In Stripe.net v51, Invoice.PaymentIntent was replaced by Invoice.ConfirmationSecret
                 var clientSecret = subscription.LatestInvoice?.ConfirmationSecret?.ClientSecret;
+                if (clientSecret is null)
+                {
+                    _logger.LogError("ConfirmationSecret missing for subscription {Id}", subscription.Id);
+                    return StatusCode(500, "Greška pri pokretanju plaćanja.");
+                }
                 return Ok(new { clientSecret, subscriptionId = subscription.Id });
             }
             catch (StripeException ex)
@@ -101,8 +106,17 @@ namespace E_Dnevnik_API.Controllers
                 return StatusCode(500, "Greška pri provjeri pretplate.");
             }
 
+            // Verify the subscription belongs to the authenticated user
+            var customerService = new CustomerService(_stripe);
+            var customers = await customerService.ListAsync(
+                new CustomerListOptions { Email = email, Limit = 1 }
+            );
+            var customer = customers.Data.FirstOrDefault();
+            if (customer is null || subscription.CustomerId != customer.Id)
+                return Forbid();
+
             if (subscription.Status != "active" && subscription.Status != "trialing")
-                return NotFound("Pretplata nije aktivna.");
+                return BadRequest("Pretplata nije aktivna.");
 
             if (_firestore != null)
             {
