@@ -161,6 +161,54 @@ namespace E_Dnevnik_API.Controllers
             return Ok(new { success = true });
         }
 
+        [HttpPost("Cancel")]
+        public async Task<IActionResult> Cancel()
+        {
+            var email = TryGetEmail();
+            if (email is null)
+                return Unauthorized("Sesija je istekla ili token nije valjan.");
+
+            try
+            {
+                var customerService = new CustomerService(_stripe);
+                var existing = await customerService.ListAsync(
+                    new CustomerListOptions { Email = email, Limit = 1 }
+                );
+                var customer = existing.Data.FirstOrDefault();
+                if (customer is null)
+                    return NotFound("Stripe kupac nije pronađen.");
+
+                var subscriptionService = new SubscriptionService(_stripe);
+                var subscriptions = await subscriptionService.ListAsync(
+                    new SubscriptionListOptions
+                    {
+                        Customer = customer.Id,
+                        Status = "active",
+                        Limit = 1,
+                    }
+                );
+                var subscription = subscriptions.Data.FirstOrDefault();
+                if (subscription is null)
+                    return NotFound("Aktivna pretplata nije pronađena.");
+
+                await subscriptionService.CancelAsync(subscription.Id);
+
+                var cache = await _db.StudentCache.FindAsync(email);
+                if (cache != null)
+                {
+                    cache.IsOdlikasPlus = false;
+                    await _db.SaveChangesAsync();
+                }
+
+                return Ok(new { success = true });
+            }
+            catch (StripeException ex)
+            {
+                _logger.LogError("Stripe error in Cancel: {Message}", ex.Message);
+                return StatusCode(500, "Greška pri otkazivanju pretplate.");
+            }
+        }
+
         public record ConfirmRequest(string? SubscriptionId);
     }
 }
