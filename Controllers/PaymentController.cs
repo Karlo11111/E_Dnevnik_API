@@ -22,7 +22,8 @@ namespace E_Dnevnik_API.Controllers
             StripeClient stripe,
             IServiceProvider services,
             ILogger<PaymentController> logger
-        ) : base(sessionStore)
+        )
+            : base(sessionStore)
         {
             _db = db;
             _stripe = stripe;
@@ -58,7 +59,7 @@ namespace E_Dnevnik_API.Controllers
                         Customer = customer.Id,
                         Items = [new SubscriptionItemOptions { Price = PriceId }],
                         PaymentBehavior = "default_incomplete",
-                        Expand = ["latest_invoice"],
+                        Expand = ["latest_invoice", "latest_invoice.confirmation_secret"],
                     }
                 );
 
@@ -66,7 +67,10 @@ namespace E_Dnevnik_API.Controllers
                 var clientSecret = subscription.LatestInvoice?.ConfirmationSecret?.ClientSecret;
                 if (clientSecret is null)
                 {
-                    _logger.LogError("ConfirmationSecret missing for subscription {Id}", subscription.Id);
+                    _logger.LogError(
+                        "ConfirmationSecret missing for subscription {Id}",
+                        subscription.Id
+                    );
                     return StatusCode(500, "Greška pri pokretanju plaćanja.");
                 }
                 return Ok(new { clientSecret, subscriptionId = subscription.Id });
