@@ -215,11 +215,13 @@ namespace E_Dnevnik_API.Controllers
                         break;
                 }
 
+                var totalSessions = userSessions.Sum(s => s.SessionsCompleted);
+
                 entry.CurrentStreak = streak;
                 entry.GradeDeltaScore = delta;
-                entry.StreakScore = Math.Min(streak, 30);
+                entry.StreakScore = totalSessions * (1m + streak * 0.1m);
                 entry.CombinedScore =
-                    (entry.GradeDeltaScore * 0.6m) + (entry.StreakScore / 30m * 100m * 0.4m);
+                    (entry.StreakScore * 0.6m) + (entry.GradeDeltaScore * 30m * 0.4m);
                 entry.LastScoreUpdate = DateTime.UtcNow;
             }
 

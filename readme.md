@@ -18,6 +18,7 @@ Backend REST API for the **Odlikaš** mobile app — a companion for the Croatia
 - Leaderboard — opt-in anonymous GPA ranking by school program
 - Pomodoro session tracking
 - Study notification scheduling
+- Stripe subscription paywall — create subscription, confirm payment, cancel
 - Rate limiting (20 req/min per IP), HSTS, security headers
 - Auto-migration on startup (EF Core + PostgreSQL)
 
@@ -31,6 +32,8 @@ Backend REST API for the **Odlikaš** mobile app — a companion for the Croatia
 | Database | PostgreSQL + Entity Framework Core 8 |
 | Scraping | HtmlAgilityPack |
 | Push notifications | Firebase Admin SDK (FCM) |
+| Payments | Stripe.net v51 |
+| Realtime DB | Google.Cloud.Firestore |
 | Deployment | Docker → Fly.io |
 | DB hosting | Neon (serverless Postgres) |
 
@@ -48,7 +51,8 @@ E_Dnevnik_API/
 │   ├── DeviceController              # FCM token registration
 │   ├── BackgroundController          # Manual background refresh trigger
 │   ├── PomodoroController            # Pomodoro session tracking
-│   └── StudyNotificationsController
+│   ├── StudyNotificationsController
+│   └── PaymentController             # Stripe subscription (create, confirm, cancel)
 ├── ScrapingServices/     # E-Dnevnik HTML scraping logic
 │   ├── ScraperService                # Main grades scraper
 │   ├── SpecificSubjectScraperService
@@ -111,7 +115,8 @@ E_Dnevnik_API/
 |---|---|---|
 | `DATABASE_URL` | Yes (production) | Postgres connection URL (`postgres://user:pass@host/db`) |
 | `PORT` | No | Port to listen on (default: `5168`) |
-| `FIREBASE_SERVICE_ACCOUNT_JSON` | No | Firebase service account JSON content for push notifications |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | No | Firebase service account JSON content for push notifications and Firestore |
+| `STRIPE_SECRET_KEY` | Yes (payments) | Stripe secret key — app throws on startup if missing |
 
 ---
 
@@ -140,6 +145,9 @@ docker run -p 8080:8080 \
 | GET | `/api/Account/Status` | Get account flags (e.g. isOdlikasPlus) |
 | GET | `/api/Leaderboard` | Get anonymous leaderboard by program |
 | POST | `/api/Device/token` | Register FCM device token |
+| POST | `/api/Payment/CreateSubscription` | Start Stripe subscription, returns `clientSecret` |
+| POST | `/api/Payment/Confirm` | Confirm payment, grants Odlikaš+ in Postgres + Firestore |
+| POST | `/api/Payment/Cancel` | Cancel active Stripe subscription, revokes Odlikaš+ |
 
 Full API documentation: [`API_DOCUMENTATION.md`](API_DOCUMENTATION.md)
 
