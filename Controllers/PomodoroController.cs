@@ -45,6 +45,24 @@ namespace E_Dnevnik_API.Controllers
             session.TotalMinutes += 25;
             await _db.SaveChangesAsync();
 
+            var currentStreak = await GetCurrentStreak(email);
+
+            var leaderboardEntry = await _db.LeaderboardEntries.FindAsync(email);
+            if (leaderboardEntry != null)
+            {
+                var totalSessions = await _db.PomodoroSessions
+                    .Where(s => s.Email == email)
+                    .SumAsync(s => s.SessionsCompleted);
+
+                leaderboardEntry.CurrentStreak = currentStreak;
+                leaderboardEntry.StreakScore = totalSessions * (1m + currentStreak * 0.1m);
+                leaderboardEntry.CombinedScore =
+                    (leaderboardEntry.StreakScore * 0.6m)
+                    + (leaderboardEntry.GradeDeltaScore * 30m * 0.4m);
+                leaderboardEntry.LastScoreUpdate = DateTime.UtcNow;
+                await _db.SaveChangesAsync();
+            }
+
             return Ok(new { streak = await CalculateStreak(email), capped = false });
         }
 
@@ -57,6 +75,30 @@ namespace E_Dnevnik_API.Controllers
                     "Sesija je istekla ili token nije valjan. Potrebna je ponovna prijava."
                 );
             return Ok(await CalculateStreak(email));
+        }
+
+        private async Task<int> GetCurrentStreak(string email)
+        {
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var sessions = await _db
+                .PomodoroSessions.Where(s => s.Email == email && s.SessionDate <= today)
+                .OrderByDescending(s => s.SessionDate)
+                .Take(365)
+                .ToListAsync();
+
+            int streak = 0;
+            var checkDate = today;
+            foreach (var s in sessions)
+            {
+                if (s.SessionDate == checkDate && s.SessionsCompleted > 0)
+                {
+                    streak++;
+                    checkDate = checkDate.AddDays(-1);
+                }
+                else if (s.SessionDate < checkDate)
+                    break;
+            }
+            return streak;
         }
 
         private async Task<object> CalculateStreak(string email)
