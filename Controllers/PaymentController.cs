@@ -12,21 +12,20 @@ namespace E_Dnevnik_API.Controllers
         private const string PriceId = "price_1TRFoiQGIIBW5gARkmRIihj7";
 
         private readonly AppDbContext _db;
-        private readonly StripeClient _stripe;
+        private readonly StripeClient? _stripe;
         private readonly FirestoreDb? _firestore;
         private readonly ILogger<PaymentController> _logger;
 
         public PaymentController(
             SessionStore sessionStore,
             AppDbContext db,
-            StripeClient stripe,
             IServiceProvider services,
             ILogger<PaymentController> logger
         )
             : base(sessionStore)
         {
             _db = db;
-            _stripe = stripe;
+            _stripe = services.GetService<StripeClient>();
             _firestore = services.GetService<FirestoreDb>();
             _logger = logger;
         }
@@ -34,6 +33,7 @@ namespace E_Dnevnik_API.Controllers
         [HttpPost("CreateSubscription")]
         public async Task<IActionResult> CreateSubscription()
         {
+            if (_stripe is null) return StatusCode(503, "Plaćanje nije konfigurirano.");
             var email = TryGetEmail();
             if (email is null)
                 return Unauthorized(
@@ -85,6 +85,7 @@ namespace E_Dnevnik_API.Controllers
         [HttpPost("Confirm")]
         public async Task<IActionResult> Confirm([FromBody] ConfirmRequest request)
         {
+            if (_stripe is null) return StatusCode(503, "Plaćanje nije konfigurirano.");
             var email = TryGetEmail();
             if (email is null)
                 return Unauthorized(
@@ -164,6 +165,7 @@ namespace E_Dnevnik_API.Controllers
         [HttpPost("Cancel")]
         public async Task<IActionResult> Cancel()
         {
+            if (_stripe is null) return StatusCode(503, "Plaćanje nije konfigurirano.");
             var email = TryGetEmail();
             if (email is null)
                 return Unauthorized("Sesija je istekla ili token nije valjan.");

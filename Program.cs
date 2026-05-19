@@ -114,9 +114,11 @@ if (serviceAccountJson != null)
 }
 
 // --- Stripe ---
-var stripeKey = Environment.GetEnvironmentVariable("STRIPE_SECRET_KEY")
-    ?? throw new InvalidOperationException("STRIPE_SECRET_KEY environment variable is not set.");
-builder.Services.AddSingleton(new StripeClient(stripeKey));
+var stripeKey = Environment.GetEnvironmentVariable("STRIPE_SECRET_KEY");
+if (stripeKey is null && !builder.Environment.IsDevelopment())
+    throw new InvalidOperationException("STRIPE_SECRET_KEY environment variable is not set.");
+if (stripeKey is not null)
+    builder.Services.AddSingleton(new StripeClient(stripeKey));
 
 // --- Firestore ---
 if (serviceAccountJson != null)
