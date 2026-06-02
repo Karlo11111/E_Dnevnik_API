@@ -14,10 +14,15 @@ appsettings.Local.json
 *.user
 .idea/
 
-# Claude Code local settings
+# Claude Code / AI agent artifacts
 .claude/
+.agents/
+docs/superpowers/
+skills-lock.json
 
 # OS
 .DS_Store
 Thumbs.db
-docs/superpowers/plans/2026-04-29-stripe-paywall-backend.md
+
+# Binary archives (use GitHub Releases instead)
+*.zip
