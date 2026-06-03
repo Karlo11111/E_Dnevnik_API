@@ -174,3 +174,40 @@ fly deploy -a e-dnevnik-api
 - HSTS enforced in production
 - Security headers: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`
 - CORS blocks all browser origins in production (API is mobile-only)
+
+---
+
+## Contributing
+
+### Branch strategy
+
+Never commit directly to `main`. All work goes through a feature branch and a pull request.
+
+Branch naming:
+```
+feat/<short-description>      # new feature
+fix/<short-description>       # bug fix
+refactor/<short-description>  # cleanup or restructure
+docs/<short-description>      # documentation only
+ci/<short-description>        # CI/CD changes
+```
+
+### Commit message conventions
+
+```
+feat: add leaderboard opt-in endpoint
+fix: handle missing CSRF token on login page
+refactor: extract score calculation into helper
+docs: update environment variable table
+ci: switch to flyctl for deploy step
+test: add CacheService TTL tests
+chore: remove committed zip archives
+```
+
+### Pull request process
+
+1. Branch off `main`: `git checkout -b feat/my-feature`
+2. Make changes, commit with the conventions above
+3. Push and open a PR against `main`
+4. CI runs automatically — build and all tests must pass before merging
+5. Merge via GitHub (squash or merge commit, your choice)
