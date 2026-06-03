@@ -44,14 +44,14 @@ Backend REST API for the **Odlikaš** mobile app — a companion for the Croatia
 ```
 E_Dnevnik_API/
 ├── Controllers/          # HTTP endpoints (thin layer, no business logic)
-│   ├── LoginController               # POST /api/Login
-│   ├── ScrapeController              # Grade, subject, profile scraping
+│   ├── LoginController               # POST /api/Login, DELETE /api/Login
+│   ├── ScraperController             # All scraping endpoints
 │   ├── AccountController             # Account status, Odlikas+ flag
 │   ├── LeaderboardController         # Anonymous GPA leaderboard
 │   ├── DeviceController              # FCM token registration
 │   ├── BackgroundController          # Manual background refresh trigger
-│   ├── PomodoroController            # Pomodoro session tracking
-│   ├── StudyNotificationsController
+│   ├── PomodoroController            # Pomodoro session tracking and streaks
+│   ├── StudyNotificationsController  # Monitored subjects, AI task sets
 │   └── PaymentController             # Stripe subscription (create, confirm, cancel)
 ├── ScrapingServices/     # E-Dnevnik HTML scraping logic
 │   ├── ScraperService                # Main grades scraper
@@ -59,16 +59,27 @@ E_Dnevnik_API/
 │   ├── StudentProfileScraperService
 │   ├── AbsenceScraperService
 │   ├── ScheduleTableScraperService
+│   ├── DifferentGradeLinkScraperService  # Full grade history across all school years
 │   ├── NewGradesScraperService       # Delta detection (new grades only)
 │   ├── NewTestsScraperService
+│   ├── EduHrLoginService             # CSRF-aware login, class activation
 │   ├── SessionStore                  # In-memory session management
 │   └── LoginBruteForceProtection
 ├── Services/             # Application services
-│   ├── CacheService                  # DB-backed response caching
+│   ├── CacheService                  # DB-backed response caching with TTLs
 │   ├── FcmService                    # Firebase push notifications
-│   ├── GradeChangeDetectionService
-│   ├── TaskGenerationService         # AI-generated study tasks
+│   ├── GradeChangeDetectionService   # Detects grade drops, triggers task generation
+│   ├── TaskGenerationService         # OpenAI-generated study tasks on grade drop
 │   └── NewDataRefreshService         # Background hosted service (polling)
+├── E_Dnevnik_API.Tests/  # xUnit test suite
+│   ├── Unit/
+│   │   ├── BruteForceProtectionTests
+│   │   ├── CacheServiceTests
+│   │   └── PomodoroCapTests
+│   └── Scrapers/
+│       ├── SubjectScraperTests
+│       ├── AbsenceScraperTests
+│       └── ProfileScraperTests
 ├── Database/             # EF Core DbContext
 ├── Models/               # Response/request DTOs
 ├── Migrations/           # EF Core migrations (auto-applied on startup)
@@ -134,17 +145,31 @@ docker run -p 8080:8080 \
 
 ## API Overview
 
+All scraping endpoints accept an optional `?forceRefresh=true` query parameter to bypass the cache (subject to a 15-minute cooldown).
+
 | Method | Endpoint | Description |
 |---|---|---|
 | POST | `/api/Login` | Authenticate with E-Dnevnik credentials |
-| GET | `/api/Scrape/grades` | Fetch all subjects and grades |
-| GET | `/api/Scrape/subject/{id}` | Fetch specific subject detail |
-| GET | `/api/Scrape/profile` | Fetch student profile |
-| GET | `/api/Scrape/absences` | Fetch absences |
-| GET | `/api/Scrape/schedule` | Fetch test schedule |
-| GET | `/api/Account/Status` | Get account flags (e.g. isOdlikasPlus) |
-| GET | `/api/Leaderboard` | Get anonymous leaderboard by program |
-| POST | `/api/Device/token` | Register FCM device token |
+| DELETE | `/api/Login` | Logout, invalidates session token |
+| GET | `/api/Scraper/ScrapeSubjectsAndProfessors` | All subjects and current grades |
+| GET | `/api/Scraper/ScrapeSpecificSubjectGrades?subjectId=` | Individual subject grade detail |
+| GET | `/api/Scraper/ScrapeStudentProfile` | Student profile and school class info |
+| GET | `/api/Scraper/ScrapeTests` | Upcoming test schedule |
+| GET | `/api/Scraper/ScrapeAbsences` | Absence records |
+| GET | `/api/Scraper/ScrapeScheduleTable` | Weekly class schedule |
+| GET | `/api/Scraper/ScrapeDifferentGrades` | Full grade history across all school years |
+| GET | `/api/Scraper/ScrapeNewGrades` | Only grades added since last check |
+| GET | `/api/Scraper/ScrapeNewTests` | Only tests added since last check |
+| GET | `/api/Scraper/CalculateMissedClassPercentages` | Per-subject absence percentage |
+| GET | `/api/Account/Status` | Account flags (`isOdlikasPlus`, since date) |
+| GET | `/api/Leaderboard` | Anonymous GPA leaderboard by school program |
+| POST | `/api/Device/token` | Register FCM device token for push notifications |
+| POST | `/api/Pomodoro/CompleteSession` | Record a completed 25-min Pomodoro session |
+| GET | `/api/Pomodoro/GetStreak` | Current and longest Pomodoro streak |
+| POST | `/api/StudyNotifications/SetMonitoredSubjects` | Set subjects to monitor for grade drops |
+| GET | `/api/StudyNotifications/GetMonitoredSubjects` | Get currently monitored subjects |
+| GET | `/api/StudyNotifications/GetPendingTasks` | Get AI-generated study task sets |
+| POST | `/api/StudyNotifications/CompleteTaskSet/{id}` | Mark a task set as completed |
 | POST | `/api/Payment/CreateSubscription` | Start Stripe subscription, returns `clientSecret` |
 | POST | `/api/Payment/Confirm` | Confirm payment, grants Odlikaš+ in Postgres + Firestore |
 | POST | `/api/Payment/Cancel` | Cancel active Stripe subscription, revokes Odlikaš+ |
@@ -166,13 +191,38 @@ fly deploy -a e-dnevnik-api
 
 ---
 
+## Tests
+
+Unit tests live in `E_Dnevnik_API.Tests/`. Run them with:
+
+```bash
+dotnet test
+```
+
+| Suite | Coverage |
+|---|---|
+| `Unit/BruteForceProtectionTests` | IsBlocked after 5 failures, case-insensitive matching, per-email isolation, reset on success |
+| `Unit/CacheServiceTests` | Fresh cache hit (no fetch), stale cache miss, force-refresh within cooldown (suppressed), force-refresh after cooldown (allowed) |
+| `Unit/PomodoroCapTests` | 8th session succeeds, 9th session returns `capped: true`, yesterday's cap does not block today |
+| `Scrapers/SubjectScraperTests` | HTML parsing of subject names, professors, grades, subject IDs; `ExtractNumbers` against real href patterns |
+| `Scrapers/AbsenceScraperTests` | Absence record parsing from fixture HTML |
+| `Scrapers/ProfileScraperTests` | Student profile field extraction from fixture HTML |
+
+## CI/CD
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push and pull request:
+
+1. `dotnet restore` → `dotnet build` → `dotnet test`
+2. On merge to `main`: auto-deploys to Fly.io via `flyctl deploy`
+
 ## Security
 
 - Credentials never stored — only a session token tied to the live E-Dnevnik cookie
 - All secrets managed via environment variables (no hardcoded values)
-- Rate limiting: 20 requests/min per IP
-- HSTS enforced in production
-- Security headers: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`
+- Brute force protection: 5 failed login attempts → 15-minute lockout per email
+- Rate limiting: 20 requests/min per IP with a `429` JSON response
+- HSTS enforced in production (365-day max-age, includeSubDomains)
+- Security headers: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Content-Security-Policy: default-src 'none'`, `X-Permitted-Cross-Domain-Policies: none`
 - CORS blocks all browser origins in production (API is mobile-only)
 
 ---
