@@ -5,6 +5,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Prevent the test project subdirectory from being included in the main project's compile glob -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);E_Dnevnik_API.Tests/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
