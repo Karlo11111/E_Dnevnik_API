@@ -31,6 +31,6 @@ jobs:
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
-      - run: fly deploy -a e-dnevnik-api
+      - run: flyctl deploy -a e-dnevnik-api --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
