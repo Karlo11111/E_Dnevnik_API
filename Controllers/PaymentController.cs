@@ -9,7 +9,7 @@ namespace E_Dnevnik_API.Controllers
     [Route("api/[controller]")]
     public class PaymentController : ApiBaseController
     {
-        private const string PriceId = "price_1TRFoiQGIIBW5gARkmRIihj7";
+        private readonly string _priceId;
 
         private readonly AppDbContext _db;
         private readonly StripeClient? _stripe;
@@ -20,6 +20,7 @@ namespace E_Dnevnik_API.Controllers
             SessionStore sessionStore,
             AppDbContext db,
             IServiceProvider services,
+            IConfiguration config,
             ILogger<PaymentController> logger
         )
             : base(sessionStore)
@@ -28,6 +29,9 @@ namespace E_Dnevnik_API.Controllers
             _stripe = services.GetService<StripeClient>();
             _firestore = services.GetService<FirestoreDb>();
             _logger = logger;
+            _priceId = Environment.GetEnvironmentVariable("STRIPE_PRICE_ID")
+                ?? config["Stripe:PriceId"]
+                ?? "price_1TRFoiQGIIBW5gARkmRIihj7";
         }
 
         [HttpPost("CreateSubscription")]
@@ -57,7 +61,7 @@ namespace E_Dnevnik_API.Controllers
                     new SubscriptionCreateOptions
                     {
                         Customer = customer.Id,
-                        Items = [new SubscriptionItemOptions { Price = PriceId }],
+                        Items = [new SubscriptionItemOptions { Price = _priceId }],
                         PaymentBehavior = "default_incomplete",
                         Expand = ["latest_invoice", "latest_invoice.confirmation_secret"],
                     }
